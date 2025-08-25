@@ -173,10 +173,11 @@
                           <option value=""></option>
                           <option selected value="without_cloud_api">{{ translate('Without Cloud API') }}</option>
                           <option value="cloud_api">{{ translate('Cloud API') }}</option>
+                          <option value="evolution_api">{{ translate('Evolution API') }}</option>
                         </select>
                       </div>
                     </div>
-                    <div class="col-12 whatsapp_device_option d-none">
+                    <div class="col-12 whatsapp_device_option device-select-block d-none">
                       <div class="form-inner">
                         <label for="whatsapp_device_id" class="form-label">{{ translate("Choose A Node Device") }}</label>
                         <select class="form-select select2-search" id="whatsapp_device_id" data-placeholder="{{ translate("Choose a node device") }}" data-show="5" aria-label="whatsapp_device_id">
@@ -196,6 +197,17 @@
                           <option value=""></option>
                           @foreach(\Illuminate\Support\Arr::get($gateways, "cloud", []) as $cloud_api_account_key => $cloud_api_account_name)
                             <option value="{{$cloud_api_account_key}}">{{($cloud_api_account_name)}}</option>
+                          @endforeach
+                        </select>
+                      </div>
+                    </div>
+                    <div class="col-12 whatsapp_evolution_option d-none">
+                      <div class="form-inner">
+                        <label for="whatsapp_evolution_id" class="form-label">{{ translate("Choose Evolution API Gateway") }}</label>
+                        <select class="form-select select2-search repeat-scale whatsapp_evolution_api" data-placeholder="{{ translate("Choose an evolution api") }}" data-show="5" id="whatsapp_evolution_id">
+                          <option value=""></option>
+                          @foreach(\Illuminate\Support\Arr::get($gateways, "evolution", []) as $evolution_key => $evolution_name)
+                            <option value="{{$evolution_key}}">{{($evolution_name)}}</option>
                           @endforeach
                         </select>
                       </div>
@@ -224,7 +236,7 @@
               </div>
             </div>
            
-            <div class="form-element whatsapp_device_option d-none">
+            <div class="form-element whatsapp_device_option message-block d-none">
               <div class="row gy-3">
                 <div class="col-xxl-2 col-xl-3">
                   <h5 class="form-element-title">{{ translate("Message body") }}</h5>
@@ -566,14 +578,19 @@
           }
 
           function showHideOptions(selectedValue) {
-              $('.whatsapp_device_option, .whatsapp_cloud_api_option').addClass('d-none');
+              $('.device-select-block, .message-block, .whatsapp_cloud_api_option, .whatsapp_evolution_option').addClass('d-none');
 
               if (selectedValue === 'without_cloud_api') {
-                  $('.whatsapp_device_option').removeClass('d-none');
+                  $('.device-select-block').removeClass('d-none');
+                  $('.message-block').removeClass('d-none');
                   appendGatewayIdInput($('#whatsapp_device_id').val());
               } else if (selectedValue === 'cloud_api') {
                   $('.whatsapp_cloud_api_option').removeClass('d-none');
                   appendGatewayIdInput($('#whatsapp_cloud_api_id').val());
+              } else if (selectedValue === 'evolution_api') {
+                  $('.whatsapp_evolution_option').removeClass('d-none');
+                  $('.message-block').removeClass('d-none');
+                  appendGatewayIdInput($('#whatsapp_evolution_id').val());
               } else {
                   appendGatewayIdInput('-1');
               }
@@ -587,6 +604,10 @@
               appendGatewayIdInput($('#whatsapp_cloud_api_id').val());
           }
 
+          function handleEvolutionIdChange() {
+              appendGatewayIdInput($('#whatsapp_evolution_id').val());
+          }
+
           $('#whatsapp_sending_mode').on('change', function() {
               var selectedValue = $(this).val();
               showHideOptions(selectedValue);
@@ -595,6 +616,7 @@
           $('#whatsapp_device_id').on('change', handleDeviceIdChange);
 
           $('#whatsapp_cloud_api_id').on('change', handleCloudApiIdChange);
+          $('#whatsapp_evolution_id').on('change', handleEvolutionIdChange);
 
           $('form').on('submit', function(event) {
               var currentGatewayId = $('input[name="gateway_id"]').val();

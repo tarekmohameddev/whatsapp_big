@@ -323,6 +323,20 @@ Route::middleware([
                         Route::post('status/update', 'statusUpdate')->name('status.update');
                     });
                 });
+
+                // Evolution API Gateways
+                Route::prefix('evolution')
+                        ->name('evolution.')
+                        ->group(function () {
+                    Route::resource('/', \App\Http\Controllers\Admin\Communication\Gateway\WhatsappEvolutionApiController::class, [
+                        'parameters' => ['' => 'id?'],
+                    ])->only([
+                        'index',
+                        'store',
+                        'update',
+                        'destroy',
+                    ]);
+                });
             });
 
             // Email Gateways

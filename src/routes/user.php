@@ -358,6 +358,20 @@ Route::middleware([
                         Route::post('webhook', 'webhook')->name('webhook');
                     });
                 });
+
+                // Evolution API Gateways
+                Route::prefix('evolution')
+                        ->name('evolution.')
+                        ->group(function () {
+                    Route::resource('/', \App\Http\Controllers\User\Communication\Gateway\WhatsappEvolutionApiController::class, [
+                        'parameters' => ['' => 'id?'],
+                    ])->only([
+                        'index',
+                        'store',
+                        'update',
+                        'destroy',
+                    ]);
+                });
             });
 
             // Email Gateways

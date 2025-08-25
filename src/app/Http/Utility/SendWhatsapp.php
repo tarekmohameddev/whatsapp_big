@@ -64,6 +64,9 @@ class SendWhatsapp
             } elseif ($gateway->type == WhatsAppGatewayTypeEnum::CLOUD->value) {
     
                 $success = $this->sendCloudApiMessages($dispatchLog, $gateway, $message, $body, $to);
+            } elseif ($gateway->type == WhatsAppGatewayTypeEnum::EVOLUTION->value) {
+
+                $success = $this->sendEvolutionMessages($dispatchLog, $gateway, $message, $body, $to);
             }
             if ($success && $dispatchLog) {
                 $this->markAsDelivered($dispatchLog);
@@ -275,6 +278,52 @@ class SendWhatsapp
         //         \Log::error("WhatsApp dispatch fail: " . $response->body());
         //     }
         // }
+    }
+
+    /**
+     * sendEvolutionMessages
+     *
+     * @param DispatchLog $log
+     * @param Gateway $gateway
+     * @param Message $message
+     * @param string $messageData
+     * @param string|array $to
+     *
+     * @return bool
+     */
+    public function sendEvolutionMessages(DispatchLog $log, Gateway $gateway, Message $message, string $messageData, string|array $to): bool {
+
+        $server      = Arr::get($gateway->meta_data, 'server');
+        $instance    = Arr::get($gateway->meta_data, 'instance');
+        $token       = Arr::get($gateway->meta_data, 'token');
+
+        if(!$server || !$instance || !$token) throw new Exception('Missing Evolution API credentials');
+
+        $url = rtrim($server, '/').'/message/sendText/'.rawurlencode($instance);
+
+        $payload = [
+            'number' => is_array($to) ? (string) Arr::first($to) : (string) $to,
+            'text'   => $messageData,
+        ];
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'apikey'       => $token,
+        ];
+
+        $response = Http::withoutVerifying()->withHeaders($headers)->post($url, $payload);
+
+        if (!$response) throw new Exception('No response from Evolution API');
+
+        if ($response->successful()) {
+            return true;
+        }
+
+        $responseData = json_decode($response->body(), true);
+        $errorMessage = is_array($responseData) && Arr::get($responseData, 'message')
+                        ? Arr::get($responseData, 'message')
+                        : $response->body();
+        throw new Exception($errorMessage ?: 'Failed To Dispatch via Evolution API');
     }
 
     /**

@@ -10,6 +10,7 @@ enum WhatsAppGatewayTypeEnum: string
 
     case NODE   = 'node';
     case CLOUD  = 'cloud';
+    case EVOLUTION = 'evolution';
 
     /**
      * values
@@ -20,7 +21,8 @@ enum WhatsAppGatewayTypeEnum: string
     {
         return match($this) {
             self::NODE   => 'Node',
-            self::CLOUD  => 'cloud'
+            self::CLOUD  => 'cloud',
+            self::EVOLUTION => 'Evolution'
         };
     }
 
@@ -34,6 +36,7 @@ enum WhatsAppGatewayTypeEnum: string
         $color = match($this) {
             self::NODE   => 'info',
             self::CLOUD  => 'success',
+            self::EVOLUTION => 'primary',
         };
 
         echo "<span class='i-badge {$color}'>{$this->values()}</span>";

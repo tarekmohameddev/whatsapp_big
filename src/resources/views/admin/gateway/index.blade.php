@@ -42,6 +42,10 @@
                 <a class="nav-link {{ request()->routeis('admin.gateway.whatsapp.device.index') ? 'active' : '' }}" href="{{route("admin.gateway.whatsapp.device.index")}}" role="tab" {{ request()->routeis('admin.gateway.whatsapp.device.index') ? "aria-selected='true'" : "aria-selected='false' tabindex='-1'" }}>
                 <i class="ri-whatsapp-line"></i> {{ translate("Whatsapp Node Device") }} </a>
             </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {{ request()->routeis('admin.gateway.whatsapp.evolution.index') ? 'active' : '' }}" href="{{route("admin.gateway.whatsapp.evolution.index")}}" role="tab" {{ request()->routeis('admin.gateway.whatsapp.evolution.index') ? "aria-selected='true'" : "aria-selected='false' tabindex='-1'" }}>
+                <i class="ri-whatsapp-line"></i> {{ translate("Whatsapp Evolution API") }} </a>
+            </li>
         </ul>
       </div>
       

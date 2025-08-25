@@ -115,6 +115,9 @@ class AccessMiddleware
                     } elseif ((stripos($current_route, "gateway.whatsapp.device")) && $allowed_access["whatsapp"]["is_allowed"]) {
 
                         $pass = true;
+                    } elseif ((stripos($current_route, "gateway.whatsapp.evolution")) && $allowed_access["whatsapp"]["is_allowed"]) {
+
+                        $pass = true;
                     } 
                 }
                 $i++;

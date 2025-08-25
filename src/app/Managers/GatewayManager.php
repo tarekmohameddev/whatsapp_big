@@ -308,7 +308,7 @@ class GatewayManager
                                    fn(Builder $q): Builder =>
                                         $q->when(request()->input("cloud_api") == "true", 
                                         fn(Builder $q): Builder =>
-                                             $q->where("type", WhatsAppGatewayTypeEnum::CLOUD->value),
+                                             $q->whereIn("type", [WhatsAppGatewayTypeEnum::CLOUD->value, WhatsAppGatewayTypeEnum::EVOLUTION->value]),
                                                   fn(builder $q): Builder =>
                                                        $q->where("type", WhatsAppGatewayTypeEnum::NODE->value)))
                               ->when($user && !$adminSpecificGateways, 

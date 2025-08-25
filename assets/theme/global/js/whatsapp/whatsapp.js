@@ -65,6 +65,18 @@
             $('input[name="cloud_api"]').val('false'); 
             $('input[name="without_cloud_api"]').val('true');
 
+        } else if (modeName == "evolution_api") {
+            // Evolution behaves like text/body sending (no templates) but should be considered cloud-like for gateway filtering
+            $('.select-cloud-templates').addClass('d-none');
+            $('.whatsapp-cloud-steps').addClass('d-none');
+            $('.with-cloud-message').addClass('d-none');
+            $('.without-cloud-message').removeClass('d-none');
+            $('.whatsapp_business_api').addClass('d-none');
+            $('.whatsapp_node_devices').addClass('d-none');
+            $('input[name="whatsapp_mode"]').val('false');
+            $('input[name="cloud_api"]').val('true'); 
+            $('input[name="without_cloud_api"]').val('false');
+
         } else {
             $('.without-cloud-message').addClass('d-none');
             $('.with-cloud-message').removeClass('d-none');

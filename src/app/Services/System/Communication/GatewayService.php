@@ -151,6 +151,19 @@ class GatewayService
                $gateways = $this->gatewayManager->getGateways(channel: $channel, groupBy: false, type: $type, user: $user);
                $credentials = config('setting.whatsapp_business_credentials');
                
+          } elseif ($channel == ChannelTypeEnum::WHATSAPP 
+               && $type == WhatsAppGatewayTypeEnum::EVOLUTION) {
+
+               $title    = translate("WhatsApp Evolution APIs");
+               $gateways = $this->gatewayManager->getGateways(channel: $channel, groupBy: false, type: $type, user: $user);
+               $credentials = [
+                    'required' => [
+                         'instance' => '###',
+                         'server'   => '###',
+                         'token'    => '###',
+                    ],
+               ];
+
           } else {
 
                $notify[] = ["error", translate("Request for an unknown channel")];

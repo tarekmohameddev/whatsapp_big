@@ -157,6 +157,14 @@ return [
                 ],
                 "native_bulk_support" => false
             ],
+            "evolution" => [
+                "meta_data" => [
+                    'instance' => "###",
+                    'server'   => "###",
+                    'token'    => "###",
+                ],
+                "native_bulk_support" => false
+            ],
         ]
     ],
 
