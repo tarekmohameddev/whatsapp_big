@@ -1,0 +1,75 @@
+# --- Environment & secrets ---
+src/.env
+src/.env.*
+!src/.env.example
+
+# OAuth / Passport keys
+src/storage/oauth-*.key
+
+# --- Dependencies (never commit) ---
+src/vendor/
+src/node_modules/
+
+# --- Laravel storage (keep only placeholder .gitignore files) ---
+src/storage/*
+!src/storage/.gitignore
+!src/storage/app/.gitignore
+!src/storage/app/public/.gitignore
+!src/storage/framework/.gitignore
+!src/storage/framework/cache/.gitignore
+!src/storage/framework/sessions/.gitignore
+!src/storage/framework/testing/.gitignore
+!src/storage/framework/views/.gitignore
+!src/storage/logs/.gitignore
+
+# Public storage symlink
+src/public/storage
+
+src/public/*
+
+# --- Compiled / cache artifacts ---
+src/bootstrap/cache/*
+!src/bootstrap/cache/.gitignore
+
+# If your build outputs to these, ignore them:
+src/public/hot
+src/public/build
+src/public/mix-manifest.json
+
+# --- Testing / coverage ---
+src/.phpunit.result.cache
+src/coverage/
+src/test-output/
+
+# --- Logs & dumps ---
+*.log
+*.sql
+*.sqlite
+*.dump
+*.dmp
+
+# --- Frontend tool artifacts ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# --- IDE / OS junk ---
+.vscode/
+.idea/
+*.iml
+*.sublime-*
+.DS_Store
+Thumbs.db
+
+# --- Docker / local dev (optional; uncomment if used) ---
+# docker-compose.override.yml
+# .docker/
+# .devcontainer/
+
+# --- Misc (optional) ---
+# .history/
+# .turbo/
+# .cache/
+src/server.php
