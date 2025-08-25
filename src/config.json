@@ -1,0 +1,18 @@
+{
+    "version": "3.33",
+    "migrations": {
+        "3.33": [
+            "database/migrations/2025_07_29_063221_add_wallet_balance_to_users_table.php",
+            "database/migrations/2025_07_29_073257_create_with_draw_methods_table.php",
+            "database/migrations/2025_07_31_033410_create_withdraw_logs_table.php",
+            "database/migrations/2025_07_31_054240_create_affiliate_logs_table.php",
+            "database/migrations/2025_08_04_055619_add_referral_id_to_users_table.php",
+            "database/migrations/2025_08_04_060224_add_affiliate_commission_to_pricing_plans_table.php"
+        ]
+    },
+    "seeder": {
+        "3.33": [
+            "Database\\Seeders\\AISettingsSeeder"
+        ]
+    }
+}

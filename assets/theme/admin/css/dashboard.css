@@ -1,0 +1,211 @@
+/* Final CSS with all requested improvements and inline style replacements */
+
+/* Card hover effects */
+.feature-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-color: var(--color-border-light) !important;
+  background-color: var(--card-bg) !important;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 0.8rem rgba(132, 132, 132, 0.15) !important;
+}
+
+/* Base feature status styling - subtle backgrounds */
+.feature-status {
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+  border-color: var(--color-border-light) !important;
+  background-color: var(--card-bg) !important;
+}
+
+/* Subtle hover effects */
+.feature-status:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Color-specific hover effects - border color changes */
+.feature-status-primary:hover {
+  border-color: var(--color-primary) !important;
+  background-color: var(--color-primary-light) !important;
+}
+
+.feature-status-success:hover {
+  border-color: var(--color-success) !important;
+  background-color: var(--color-success-light) !important;
+}
+
+.feature-status-warning:hover {
+  border-color: var(--color-warning) !important;
+  background-color: var(--color-warning-light) !important;
+}
+
+.feature-status-danger:hover {
+  border-color: var(--color-danger) !important;
+  background-color: var(--color-danger-light) !important;
+}
+
+/* Icon hover effects */
+.feature-icon {
+  transition: all 0.3s ease-in-out;
+  width: 36px !important;
+  height: 36px !important;
+}
+
+.feature-status:hover .feature-icon {
+  transform: scale(1.05);
+}
+
+/* New tab icon hover effect */
+.feature-status:hover .new-tab-icon {
+  opacity: 1 !important;
+}
+
+/* Link styling */
+.feature-status a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.feature-status a:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* RTL Support */
+[dir="rtl"] .text-center {
+  text-align: center !important;
+}
+
+[dir="rtl"] .justify-content-start {
+  justify-content: flex-end !important;
+}
+
+[dir="rtl"] .card-header-left {
+  order: 2;
+}
+
+[dir="rtl"] .card-header-right {
+  order: 1;
+}
+
+[dir="rtl"] .new-tab-icon {
+  left: 8px !important;
+  right: auto !important;
+}
+
+/* Focus states for accessibility */
+.feature-status:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+  .feature-status {
+    padding: 0.75rem !important;
+  }
+
+  .feature-status-count {
+    font-size: 1.25rem !important;
+  }
+
+  .feature-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .feature-status:hover {
+    transform: none; /* Disable transform on mobile for better touch experience */
+  }
+}
+
+/* Smooth transitions for all interactive elements */
+.feature-status,
+.feature-icon,
+.feature-card,
+.new-tab-icon {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ensure consistent spacing and alignment */
+.feature-status {
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Remove link underlines globally for these cards */
+.feature-status a,
+.feature-status a:hover,
+.feature-status a:focus,
+.feature-status a:active {
+  text-decoration: none !important;
+  color: inherit;
+}
+
+/* Additional styles from inline attributes */
+.card-title {
+  color: var(--text-primary) !important;
+}
+
+.card-header-right .fs-4 {
+  color: var(--color-info); /* SMS Statistics */
+}
+
+.card-header-right .fs-4.email {
+  color: var(--color-danger); /* Email Statistics */
+}
+
+.card-header-right .fs-4.whatsapp {
+  color: var(--color-success); /* Whatsapp Statistics */
+}
+
+.feature-icon {
+  background-color: var(--card-bg) !important;
+}
+
+.feature-icon i {
+  font-size: 1.1rem !important;
+}
+
+.feature-status-primary .feature-icon {
+  color: var(--color-primary) !important;
+}
+
+.feature-status-success .feature-icon {
+  color: var(--color-success) !important;
+}
+
+.feature-status-warning .feature-icon {
+  color: var(--color-warning) !important;
+}
+
+.feature-status-danger .feature-icon {
+  color: var(--color-danger) !important;
+}
+
+.feature-status-count {
+  color: var(--text-primary) !important;
+}
+
+.feature-status p.text-uppercase {
+  font-size: 0.7rem !important;
+  letter-spacing: 0.5px !important;
+  color: var(--text-secondary) !important;
+}
+
+.new-tab-icon {
+  bottom: 8px !important;
+  right: 8px !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.new-tab-icon i {
+  font-size: 0.8rem !important;
+  color: var(--text-secondary) !important;
+}
