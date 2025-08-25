@@ -578,11 +578,12 @@
           }
 
           function showHideOptions(selectedValue) {
-              $('.device-select-block, .message-block, .whatsapp_cloud_api_option, .whatsapp_evolution_option').addClass('d-none');
+              $('.device-select-block, .message-block, .whatsapp_cloud_api_option, .whatsapp_evolution_option, .without-cloud-message').addClass('d-none');
 
               if (selectedValue === 'without_cloud_api') {
                   $('.device-select-block').removeClass('d-none');
                   $('.message-block').removeClass('d-none');
+                  $('.without-cloud-message').removeClass('d-none');
                   appendGatewayIdInput($('#whatsapp_device_id').val());
               } else if (selectedValue === 'cloud_api') {
                   $('.whatsapp_cloud_api_option').removeClass('d-none');
@@ -590,6 +591,7 @@
               } else if (selectedValue === 'evolution_api') {
                   $('.whatsapp_evolution_option').removeClass('d-none');
                   $('.message-block').removeClass('d-none');
+                  $('.without-cloud-message').removeClass('d-none');
                   appendGatewayIdInput($('#whatsapp_evolution_id').val());
               } else {
                   appendGatewayIdInput('-1');

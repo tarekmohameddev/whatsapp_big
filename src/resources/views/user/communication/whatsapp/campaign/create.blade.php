@@ -266,7 +266,7 @@
                         </div>
                     </div>
                      
-                    <div class="form-element whatsapp_device_option d-none">
+                    <div class="form-element whatsapp_device_option message-block d-none">
                       <div class="row gy-3">
                         <div class="col-xxl-2 col-xl-3">
                           <h5 class="form-element-title">{{ translate("Message body") }}</h5>
@@ -738,16 +738,18 @@
       }
 
       function showHideOptions(selectedValue) {
-          $('.whatsapp_device_option, .whatsapp_cloud_api_option, .whatsapp_evolution_option').addClass('d-none');
+          $('.whatsapp_device_option, .whatsapp_cloud_api_option, .whatsapp_evolution_option, .message-block').addClass('d-none');
 
           if (selectedValue === 'without_cloud_api') {
               $('.whatsapp_device_option').removeClass('d-none');
+              $('.message-block').removeClass('d-none');
               appendGatewayIdInput($('#whatsapp_device_id').val());
           } else if (selectedValue === 'cloud_api') {
               $('.whatsapp_cloud_api_option').removeClass('d-none');
               appendGatewayIdInput($('#whatsapp_cloud_api_id').val());
           } else if (selectedValue === 'evolution_api') {
               $('.whatsapp_evolution_option').removeClass('d-none');
+              $('.message-block').removeClass('d-none');
               appendGatewayIdInput($('#whatsapp_evolution_id').val());
           } else {
               appendGatewayIdInput('-1');
