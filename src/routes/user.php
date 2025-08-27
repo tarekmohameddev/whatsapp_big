@@ -565,6 +565,18 @@ Route::middleware([
                 Route::get('edit/json/{uid?}', 'editTemplateJson')->name('.edit.json');
                 Route::post('status/update', 'updateStatus')->name('status.update');
             });
+
+            // Evolution WhatsApp Templates (User)
+            Route::prefix('whatsapp/evolution')
+                ->name('whatsapp.evolution.')
+                ->group(function () {
+                    Route::get('/', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'index'])->name('index');
+                    Route::get('/create', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'create'])->name('create');
+                    Route::post('/', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'store'])->name('store');
+                    Route::get('/{uid}/edit', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'edit'])->name('edit');
+                    Route::patch('/{uid}', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'update'])->name('update');
+                    Route::delete('/{uid}', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'destroy'])->name('destroy');
+                });
         });
 
         ## ------------------- ##
