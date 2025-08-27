@@ -405,7 +405,7 @@
                                         </span>
                                         <p>{{ translate('WhatsApp') }}</p>
                                     </a>
-                                    <div class="side-menu-dropdown collapse {{ menuShow(['user.template.index', 'user.template.whatsapp.evolution.*']) }}" id="tplWhatsApp">
+                                    <div class="side-menu-dropdown collapse show {{ menuShow(['user.template.index', 'user.template.whatsapp.evolution.*']) }}" id="tplWhatsApp">
                                         <ul class="sub-menu">
                                             <li class="sub-menu-item">
                                                 <a class="sidebar-menu-link {{ request()->routeis('user.template.index') && request()->channel == \App\Enums\System\ChannelTypeEnum::WHATSAPP->value ? 'active' : '' }}"

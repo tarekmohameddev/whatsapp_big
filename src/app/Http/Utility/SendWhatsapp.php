@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\EvolutionWhatsappTemplate;
+use App\Enums\System\EvolutionWhatsappTemplateTypeEnum;
 
 class SendWhatsapp
 {
@@ -299,12 +301,48 @@ class SendWhatsapp
 
         if(!$server || !$instance || !$token) throw new Exception('Missing Evolution API credentials');
 
-        $url = rtrim($server, '/').'/message/sendText/'.rawurlencode($instance);
+        $number = is_array($to) ? (string) Arr::first($to) : (string) $to;
 
+        // Try to read selected Evolution template id from message meta_data
+        $templateId = Arr::get($message->meta_data ?? [], 'evolution_template_id');
+
+        // Default behavior: simple text
+        $endpointPath = '/message/sendText/';
         $payload = [
-            'number' => is_array($to) ? (string) Arr::first($to) : (string) $to,
+            'number' => $number,
             'text'   => $messageData,
         ];
+
+        if ($templateId) {
+            $tpl = EvolutionWhatsappTemplate::where('id', $templateId)->first();
+            if (!$tpl) {
+                throw new Exception('Selected Evolution template not found');
+            }
+
+            // Build payload from template and merge the recipient number
+            $payload = array_merge((array) $tpl->payload, ['number' => $number]);
+
+            // Choose endpoint path based on template type
+            switch ($tpl->type) {
+                case EvolutionWhatsappTemplateTypeEnum::SIMPLE_TXT:
+                    $endpointPath = '/message/sendText/';
+                    break;
+                case EvolutionWhatsappTemplateTypeEnum::IMAGE:
+                    $endpointPath = '/message/sendMedia/';
+                    break;
+                case EvolutionWhatsappTemplateTypeEnum::POLL:
+                    $endpointPath = '/message/sendPoll/';
+                    break;
+                case EvolutionWhatsappTemplateTypeEnum::LIST_BUTTONS:
+                    $endpointPath = '/message/sendList/';
+                    break;
+                default:
+                    $endpointPath = '/message/sendText/';
+                    break;
+            }
+        }
+
+        $url = rtrim($server, '/').$endpointPath.rawurlencode($instance);
 
         $headers = [
             'Content-Type' => 'application/json',

@@ -160,6 +160,19 @@
                                   </select>
                                 </div>
                               </div>
+                              <div class="col-12 select-evolution-templates d-none">
+                                <div class="form-inner">
+                                  <label for="evolution_template_id" class="form-label">{{ translate("Choose Evolution Template") }}</label>
+                                  <select class="form-select select2-search" name="evolution_template_id" id="evolution_template_id">
+                                    <option value=""></option>
+                                    @isset($evolutionTemplates)
+                                      @foreach($evolutionTemplates as $tpl)
+                                        <option value="{{ $tpl->id }}">{{ $tpl->name }}</option>
+                                      @endforeach
+                                    @endisset
+                                  </select>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -738,7 +751,7 @@
       }
 
       function showHideOptions(selectedValue) {
-          $('.whatsapp_device_option, .whatsapp_cloud_api_option, .whatsapp_evolution_option, .message-block').addClass('d-none');
+          $('.whatsapp_device_option, .whatsapp_cloud_api_option, .whatsapp_evolution_option, .select-evolution-templates, .message-block').addClass('d-none');
 
           if (selectedValue === 'without_cloud_api') {
               $('.whatsapp_device_option').removeClass('d-none');
@@ -749,6 +762,7 @@
               appendGatewayIdInput($('#whatsapp_cloud_api_id').val());
           } else if (selectedValue === 'evolution_api') {
               $('.whatsapp_evolution_option').removeClass('d-none');
+              $('.select-evolution-templates').removeClass('d-none');
               $('.message-block').removeClass('d-none');
               appendGatewayIdInput($('#whatsapp_evolution_id').val());
           } else {

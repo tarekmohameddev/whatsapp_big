@@ -147,7 +147,7 @@ class ProcessDispatchLogBatch implements ShouldQueue
                 $to,
                 $logs,
                 $message,
-                $message->message
+                (string) ($message->message ?? '')
             );
         } else {
             throw new \Exception("Channel {$this->channel->value} not yet implemented for bulk dispatch.");
@@ -207,7 +207,7 @@ class ProcessDispatchLogBatch implements ShouldQueue
                 $log
             );
         } elseif ($this->channel === ChannelTypeEnum::WHATSAPP) {
-            $messageText = replaceContactVariables($contact, $message->message);
+            $messageText = (string) (replaceContactVariables($contact, $message->message) ?? '');
             $sendWhatsapp->send(
                 $gateway,
                 $to,

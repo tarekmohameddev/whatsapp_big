@@ -137,7 +137,7 @@ class DispatchService
                                                   return [$gateway->id => $gateway->name];
                                                   })->toArray();
                                              })->toArray();
-                                             
+                                              
           $androidSessions    = $channel == ChannelTypeEnum::SMS 
                                    ? $this->gatewayManager->getAndroidSessions(user: $user)
                                    : null;
@@ -146,8 +146,13 @@ class DispatchService
           
           $panelType = $user ? "user" : "admin";
           
+          $evolutionTemplates = \App\Models\EvolutionWhatsappTemplate::where('user_id', $user?->id)
+              ->where('status', \App\Enums\Common\Status::ACTIVE->value)
+              ->orderBy('name')
+              ->get(['id','name']);
+          
           return view("{$panelType}.communication.{$channel->value}.create", 
-               compact('title', 'templates', 'gateways', 'groups', 'type', 'credentials', 'androidSessions', 'planAccess'));
+               compact('title', 'templates', 'gateways', 'groups', 'type', 'credentials', 'androidSessions', 'planAccess', 'evolutionTemplates'));
      }
 
       /**
@@ -489,6 +494,10 @@ class DispatchService
      protected function createMessage(Request $request, array $messageData, ChannelTypeEnum $type, bool $isCampaign = false, ?User $user = null): Message
      {
           $template = Template::find(request()->input("whatsapp_template_id"));
+          $messageMeta = [];
+          if ($request->input('method') === 'evolution_api' && $request->filled('evolution_template_id')) {
+               $messageMeta['evolution_template_id'] = (int) $request->input('evolution_template_id');
+          }
           
           return Message::create([
                'user_id'      => $user?->id,
@@ -503,6 +512,7 @@ class DispatchService
                'file_info'    => $this->findAndUploadFile($request),
                'template_id'  => request()->input("whatsapp_template_id"),
                'is_campaign'  => $isCampaign,
+               'meta_data'    => $messageMeta ?: null,
           ]);
      }
 
@@ -841,7 +851,12 @@ class DispatchService
 
           $panelType = $user ? "user" : "admin";
           
-          return view("{$panelType}.communication.{$channel->value}.campaign.create", compact('title', 'groups', 'type', 'templates', 'gateways', 'androidSessions', 'planAccess'));
+          $evolutionTemplates = \App\Models\EvolutionWhatsappTemplate::where('user_id', $user?->id)
+              ->where('status', \App\Enums\Common\Status::ACTIVE->value)
+              ->orderBy('name')
+              ->get(['id','name']);
+          
+          return view("{$panelType}.communication.{$channel->value}.campaign.create", compact('title', 'groups', 'type', 'templates', 'gateways', 'androidSessions', 'planAccess', 'evolutionTemplates'));
      }
 
      /**
