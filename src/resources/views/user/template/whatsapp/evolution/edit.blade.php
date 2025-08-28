@@ -196,12 +196,48 @@
     function addRow(rowData={}){
       const rowDiv = document.createElement('div');
       rowDiv.className = 'd-flex align-items-center gap-2 mb-2';
+      const presetActions = (window.__rowActionsPreset || {});
+      const existing = rowData.rowId ? presetActions[rowData.rowId] : null;
+      const m = existing?.method || 'GET';
+      const u = existing?.url || '';
+      const h = existing?.headers ? JSON.stringify(existing.headers) : '';
+      const b = existing?.body ? JSON.stringify(existing.body) : '';
+      const enabled = !!existing;
       rowDiv.innerHTML = `
         <input type="text" class="form-control" placeholder="rowId" name="rowId" value="${rowData.rowId||''}" required>
         <input type="text" class="form-control" placeholder="title" name="rowTitle" value="${rowData.title||''}" required>
         <input type="text" class="form-control" placeholder="description" name="rowDesc" value="${rowData.description||''}">
-        <button type="button" class="icon-btn btn-ghost btn-sm danger-soft circle remove"><i class="ri-close-line"></i></button>`;
+        <button type="button" class="i-btn btn--sm btn--secondary outline toggleAction">${'{{ translate('HTTP Action') }}'}</button>
+        <button type="button" class="icon-btn btn-ghost btn-sm danger-soft circle remove"><i class="ri-close-line"></i></button>
+        <div class="w-100 mt-2 actionWrap" style="display:${enabled ? '' : 'none'};">
+          <div class="row g-2">
+            <div class="col-md-2">
+              <select class="form-select" name="actionMethod">
+                <option ${m==='GET'?'selected':''}>GET</option>
+                <option ${m==='POST'?'selected':''}>POST</option>
+                <option ${m==='PUT'?'selected':''}>PUT</option>
+                <option ${m==='PATCH'?'selected':''}>PATCH</option>
+                <option ${m==='DELETE'?'selected':''}>DELETE</option>
+              </select>
+            </div>
+            <div class="col-md-10">
+              <input type="url" class="form-control" name="actionUrl" placeholder="https://example.com/webhook" value="${u}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label mb-1">${'{{ translate('Headers (JSON)') }}'}</label>
+              <textarea class="form-control" name="actionHeaders" rows="2" placeholder='{"Authorization":"Bearer ..."}'>${h}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label mb-1">${'{{ translate('Body (JSON)') }}'}</label>
+              <textarea class="form-control" name="actionBody" rows="2" placeholder='{"foo":"bar"}'>${b}</textarea>
+            </div>
+          </div>
+        </div>`;
       rowDiv.querySelector('.remove').onclick = () => rowDiv.remove();
+      rowDiv.querySelector('.toggleAction').onclick = () => {
+        const aw = rowDiv.querySelector('.actionWrap');
+        aw.style.display = aw.style.display === 'none' ? '' : 'none';
+      };
       return rowDiv;
     }
 
@@ -238,6 +274,7 @@
     function serialize(){
       document.querySelectorAll('.sectionsHidden').forEach(e => e.remove());
       const sections = [];
+      const rowActions = {};
       wrap.querySelectorAll('.border.rounded.p-3').forEach((secEl, i) => {
         const title = secEl.querySelector('input[name="sections_title[]"]').value || '';
         const rows = [];
@@ -245,8 +282,19 @@
           const rowId = row.querySelector('input[name="rowId"]').value;
           const rowTitle = row.querySelector('input[name="rowTitle"]').value;
           const rowDesc  = row.querySelector('input[name="rowDesc"]').value;
+          const actWrap = row.querySelector('.actionWrap');
+          const method = (row.querySelector('select[name="actionMethod"]').value || 'GET').toUpperCase();
+          const url    = (row.querySelector('input[name="actionUrl"]').value || '').trim();
+          const headersTxt = row.querySelector('textarea[name="actionHeaders"]').value || '';
+          const bodyTxt    = row.querySelector('textarea[name="actionBody"]').value || '';
           if(rowId && rowTitle){
             rows.push({ rowId: rowId, title: rowTitle, description: rowDesc || null });
+            if(actWrap && actWrap.style.display !== 'none' && url){
+              let headers = null, body = null;
+              try { headers = headersTxt ? JSON.parse(headersTxt) : null; } catch(e) { headers = null; }
+              try { body = bodyTxt ? JSON.parse(bodyTxt) : null; } catch(e) { body = null; }
+              rowActions[rowId] = { enabled: true, method, url, headers, body };
+            }
           }
         });
         if(rows.length) sections.push({ title: title || null, rows: rows });
@@ -257,6 +305,13 @@
       input.className = 'sectionsHidden';
       input.value = JSON.stringify(sections);
       document.getElementById('evoTplForm').appendChild(input);
+
+      const input2 = document.createElement('input');
+      input2.type = 'hidden';
+      input2.name = 'row_actions_json';
+      input2.className = 'sectionsHidden';
+      input2.value = JSON.stringify(rowActions);
+      document.getElementById('evoTplForm').appendChild(input2);
     }
 
     wrap.addEventListener('input', serialize);
@@ -266,6 +321,7 @@
   }
 
   typeEl.addEventListener('change', function(){ render(this.value); });
+  window.__rowActionsPreset = @json($template->row_actions ?? []);
   render(@json($template->type->value));
 
   document.getElementById('evoTplForm').addEventListener('submit', function(){

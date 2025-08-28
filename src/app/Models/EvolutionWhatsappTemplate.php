@@ -12,11 +12,12 @@ class EvolutionWhatsappTemplate extends Model
     use HasFactory;
 
     protected $fillable = [
-        'uid', 'user_id', 'name', 'type', 'payload', 'status',
+        'uid', 'user_id', 'name', 'type', 'payload', 'row_actions', 'status',
     ];
 
     protected $casts = [
         'payload' => 'array',
+        'row_actions' => 'array',
         'status'  => Status::class,
         'type'    => EvolutionWhatsappTemplateTypeEnum::class,
     ];

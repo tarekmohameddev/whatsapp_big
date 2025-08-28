@@ -34,6 +34,7 @@ class WhatsappEvolutionTemplateController extends Controller
             'name'    => $data['name'],
             'type'    => $data['type'],
             'payload' => $this->buildPayload($data),
+            'row_actions' => $this->buildRowActionsFromRequest($request),
             'status'  => Status::ACTIVE->value,
         ]);
         $notify[] = ['success', translate('Template created successfully')];
@@ -56,6 +57,7 @@ class WhatsappEvolutionTemplateController extends Controller
             'name'    => $data['name'],
             'type'    => $data['type'],
             'payload' => $this->buildPayload($data),
+            'row_actions' => $this->buildRowActionsFromRequest($request),
         ]);
         $notify[] = ['success', translate('Template updated successfully')];
         return back()->withNotify($notify);
@@ -135,6 +137,52 @@ class WhatsappEvolutionTemplateController extends Controller
                 'sections'    => array_values($data['sections']),
             ],
         };
+    }
+
+    protected function buildRowActionsFromRequest(Request $request): array
+    {
+        $json = $request->input('row_actions_json');
+        if (!$json) {
+            return [];
+        }
+        try {
+            $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable $e) {
+            return [];
+        }
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $result = [];
+        foreach ($decoded as $rowId => $cfg) {
+            if (!is_string($rowId) || $rowId === '') {
+                continue;
+            }
+            if (!is_array($cfg)) {
+                continue;
+            }
+            $enabled = (bool)($cfg['enabled'] ?? false);
+            $method = strtoupper((string)($cfg['method'] ?? 'GET'));
+            $url    = trim((string)($cfg['url'] ?? ''));
+            $headers = $cfg['headers'] ?? null;
+            $body    = $cfg['body'] ?? null;
+            if (!$enabled || $url === '') {
+                continue;
+            }
+            if (!in_array($method, ['GET','POST','PUT','PATCH','DELETE'], true)) {
+                $method = 'GET';
+            }
+            $headersArr = is_array($headers) ? $headers : null;
+            $bodyObj    = is_array($body) ? $body : null;
+            $result[$rowId] = [
+                'enabled' => true,
+                'method'  => $method,
+                'url'     => $url,
+                'headers' => $headersArr,
+                'body'    => $bodyObj,
+            ];
+        }
+        return $result;
     }
 }
 
