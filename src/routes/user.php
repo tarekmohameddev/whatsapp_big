@@ -34,6 +34,7 @@ use App\Http\Controllers\User\Communication\EmailCampaignController;
 use App\Http\Controllers\User\Communication\EmailDispatchController;
 use App\Http\Controllers\User\Communication\WhatsappCampaignController;
 use App\Http\Controllers\User\Communication\WhatsappDispatchController;
+use App\Http\Controllers\User\Pipeline\IntegrationController as UserPipelineIntegrationController;
 use App\Http\Controllers\User\Communication\Gateway\SmsGatewayController;
 use App\Http\Controllers\User\Communication\Gateway\EmailGatewayController;
 use App\Http\Controllers\User\Communication\Gateway\WhatsappDeviceController;
@@ -654,6 +655,17 @@ Route::middleware([
             Route::post('password/update', 'passwordUpdate')->name('password.update');
             Route::get('generate/api-key', 'generateApiKey')->name('generate.api.key');
             Route::post('save/generate/api-key', 'saveGenerateApiKey')->name('save.generate.api.key');
+        });
+
+        // Pipelines & Integrations (User)
+        Route::prefix('pipelines')
+                ->name('pipelines.')
+                ->group(function () {
+            Route::resource('integrations', UserPipelineIntegrationController::class, [
+                'parameters' => ['integrations' => 'uid?'],
+            ])->only([
+                'index', 'create', 'store', 'edit', 'update', 'destroy'
+            ]);
         });
 
         //Messaging Gateways

@@ -137,7 +137,7 @@ class DispatchService
                                                   return [$gateway->id => $gateway->name];
                                                   })->toArray();
                                              })->toArray();
-                                              
+                                               
           $androidSessions    = $channel == ChannelTypeEnum::SMS 
                                    ? $this->gatewayManager->getAndroidSessions(user: $user)
                                    : null;
@@ -183,6 +183,11 @@ class DispatchService
           if ($type == ChannelTypeEnum::EMAIL) {
                $metaData = Arr::set($metaData, "email_from_name", $request->input('email_from_name'));
                $metaData = Arr::set($metaData, "reply_to_address", $request->input('reply_to_address'));
+          }
+
+          // Attach arbitrary dispatch meta (e.g., webhook payload) if provided by caller
+          if ($request->has('dispatch_meta')) {
+               $metaData = Arr::set($metaData, 'webhook_payload', $request->input('dispatch_meta'));
           }
      
           $dispatchLogs = [];

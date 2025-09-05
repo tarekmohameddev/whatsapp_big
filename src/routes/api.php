@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\IncomingApi\SmsController;
 use App\Http\Controllers\Api\IncomingApi\EmailController;
 use App\Http\Controllers\Api\IncomingApi\WhatsAppController;
 use App\Http\Controllers\Api\IncomingApi\EvolutionWebhookController;
+use App\Http\Controllers\Api\IncomingApi\IntegrationWebhookController;
 use App\Http\Controllers\Api\Communication\SmsDispatchController;
 use App\Http\Controllers\Api\Communication\Gateway\Android\SimController;
 use App\Http\Controllers\Api\Communication\Gateway\Android\SessionController;
@@ -95,3 +96,6 @@ Route::middleware(['incoming.api', 'sanitizer'])->name('incoming.')->group(funct
 
 // Evolution API generic webhook endpoint (public, no incoming.api middleware)
 Route::post('whatsapp/evolution/webhook', [EvolutionWebhookController::class, 'handle'])->name('incoming.whatsapp.evolution.webhook');
+
+// Pipelines & Integrations webhook (public)
+Route::post('integrations/{uid}', [IntegrationWebhookController::class, 'handle'])->name('incoming.integrations.handle');

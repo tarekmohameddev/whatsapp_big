@@ -27,6 +27,7 @@
     $isWhatsappCampaignActive   = ['user.communication.whatsapp.campaign.*'];
     $isEmailActive              = ['user.communication.email.*'];
     $isEmailCampaignActive      = ['user.communication.email.campaign.*'];
+    $isPipelinesActive          = ['user.pipelines.integrations.*'];
     $plan_access = (object) planAccess(auth()->user());
 @endphp
 
@@ -52,6 +53,14 @@
                             <i class="ri-layout-grid-line"></i>
                         </span>
                         <span class="menu-label">{{ translate('Dashboard') }}</span>
+                    </a>
+                </li>
+                <li class="menu">
+                    <a class="menu-link {{ menuActive($isPipelinesActive) }}" href="{{ route('user.pipelines.integrations.index') }}">
+                        <span class="menu-symbol">
+                            <i class="ri-git-branch-line"></i>
+                        </span>
+                        <span class="menu-label">{{ translate('Pipelines & Integrations') }}</span>
                     </a>
                 </li>
                 <li class="menu">
