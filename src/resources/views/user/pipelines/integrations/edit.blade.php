@@ -303,7 +303,7 @@
           </div>
           <div class=\"col-md-3 action-cloud d-none\">
             <label class=\"form-label\">{{ translate('Cloud Gateways') }}</label>
-            <select class=\"form-select select2-search\" name=\"rules[${i}][action][cloud_gateway_ids][]\" multiple>\n              @foreach($cloudGateways->where('type', \\App\\Enums\\System\\Gateway\\WhatsAppGatewayTypeEnum::CLOUD->value) as $g)\n                <option value=\"{{ $g->id }}\">{{ $g->name }}</option>\n              @endforeach\n            </select>
+            <select class=\"form-select select2-search\" name=\"rules[${i}][action][cloud_gateway_ids][]\" multiple>\n              @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::CLOUD->value) as $g)\n                <option value=\"{{ $g->id }}\">{{ $g->name }}</option>\n              @endforeach\n            </select>
           </div>
           <div class=\"col-md-3 action-cloud d-none\">
             <label class=\"form-label\">{{ translate('Cloud Template') }}</label>
@@ -311,7 +311,7 @@
           </div>
           <div class=\"col-md-3 action-evo d-none\">
             <label class=\"form-label\">{{ translate('Evolution Gateways') }}</label>
-            <select class=\"form-select select2-search\" name=\"rules[${i}][action][evolution_gateway_ids][]\" multiple>\n              @foreach($cloudGateways->where('type', \\App\\Enums\\System\\Gateway\\WhatsAppGatewayTypeEnum::EVOLUTION->value) as $g)\n                <option value=\"{{ $g->id }}\">{{ $g->name }}</option>\n              @endforeach\n            </select>
+            <select class=\"form-select select2-search\" name=\"rules[${i}][action][evolution_gateway_ids][]\" multiple>\n              @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::EVOLUTION->value) as $g)\n                <option value=\"{{ $g->id }}\">{{ $g->name }}</option>\n              @endforeach\n            </select>
           </div>
           <div class=\"col-md-3 action-evo d-none\">
             <label class=\"form-label\">{{ translate('Evolution Template') }}</label>
