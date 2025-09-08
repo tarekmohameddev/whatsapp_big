@@ -184,42 +184,125 @@
 
     function addRow(rowData={}){
       const rowDiv = document.createElement('div');
-      rowDiv.className = 'd-flex align-items-center gap-2 mb-2';
+      rowDiv.className = 'border rounded p-3 mb-3';
+      const uid = 'r'+Math.random().toString(36).slice(2);
       rowDiv.innerHTML = `
-        <input type="text" class="form-control" placeholder="rowId" name="rowId" value="${rowData.rowId||''}" required>
-        <input type="text" class="form-control" placeholder="title" name="rowTitle" value="${rowData.title||''}" required>
-        <input type="text" class="form-control" placeholder="description" name="rowDesc" value="${rowData.description||''}">
-        <button type="button" class="i-btn btn--sm btn--secondary outline toggleAction">${'{{ translate('HTTP Action') }}'}</button>
-        <button type="button" class="icon-btn btn-ghost btn-sm danger-soft circle remove"><i class="ri-close-line"></i></button>
-        <div class="w-100 mt-2 actionWrap" style="display:none;">
-          <div class="row g-2">
-            <div class="col-md-2">
-              <select class="form-select" name="actionMethod">
-                <option>GET</option>
-                <option>POST</option>
-                <option>PUT</option>
-                <option>PATCH</option>
-                <option>DELETE</option>
-              </select>
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <div class="form-inner">
+              <label class="form-label">rowId<span class="text-danger">*</span></label>
+              <input type="text" class="form-control" placeholder="rowId" name="rowId" value="${rowData.rowId||''}" required>
             </div>
-            <div class="col-md-10">
-              <input type="url" class="form-control" name="actionUrl" placeholder="https://example.com/webhook">
+          </div>
+          <div class="col-md-4">
+            <div class="form-inner">
+              <label class="form-label">${'{{ translate('Title') }}'}</label>
+              <input type="text" class="form-control" placeholder="title" name="rowTitle" value="${rowData.title||''}" required>
             </div>
-            <div class="col-md-6">
-              <label class="form-label mb-1">${'{{ translate('Headers (JSON)') }}'}</label>
-              <textarea class="form-control" name="actionHeaders" rows="2" placeholder='{"Authorization":"Bearer ..."}'></textarea>
+          </div>
+          <div class="col-md-4">
+            <div class="form-inner">
+              <label class="form-label">${'{{ translate('Description') }}'}</label>
+              <input type="text" class="form-control" placeholder="description" name="rowDesc" value="${rowData.description||''}">
             </div>
-            <div class="col-md-6">
-              <label class="form-label mb-1">${'{{ translate('Body (JSON)') }}'}</label>
-              <textarea class="form-control" name="actionBody" rows="2" placeholder='{"foo":"bar"}'></textarea>
+          </div>
+          <div class="col-md-1 text-end">
+            <button type="button" class="icon-btn btn-ghost btn-sm danger-soft circle remove" title="${'{{ translate('Remove') }}'}"><i class="ri-close-line"></i></button>
+          </div>
+        </div>
+        <div class="mt-3 border rounded p-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <strong>${'{{ translate('HTTP Action') }}'}</strong>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input toggleActionSwitch" type="checkbox" name="actionEnabled" id="sw_${uid}">
+              <label class="form-check-label" for="sw_${uid}">${'{{ translate('Enable') }}'}</label>
+            </div>
+          </div>
+          <div class="actionWrap mt-2" style="display:none;">
+            <div class="row g-2">
+              <div class="col-md-2">
+                <label class="form-label">${'{{ translate('Method') }}'}</label>
+                <select class="form-select" name="actionMethod">
+                  <option>GET</option>
+                  <option>POST</option>
+                  <option>PUT</option>
+                  <option>PATCH</option>
+                  <option>DELETE</option>
+                </select>
+              </div>
+              <div class="col-md-10">
+                <label class="form-label">URL</label>
+                <input type="url" class="form-control" name="actionUrl" placeholder="https://example.com/webhook">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label mb-1">${'{{ translate('Headers (JSON)') }}'}</label>
+                <textarea class="form-control" id="headers_${uid}" name="actionHeaders" rows="2" placeholder='{"Authorization":"Bearer ..."}'></textarea>
+                <div class="text-danger small mt-1" data-err-for="headers_${uid}" style="display:none;">${'{{ translate('Invalid JSON') }}'}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center">
+                  <label class="form-label mb-1 m-0">${'{{ translate('Body (JSON)') }}'}</label>
+                  <div class="d-flex align-items-center gap-2">
+                    <label class="form-label m-0">${'{{ translate('Insert variable') }}'}:</label>
+                    <select class="form-select form-select-sm" id="vars_${uid}" style="width:auto;">
+                      <option value="">${'{{ translate('Choose') }}'}</option>
+                      <option data-type="placeholder" data-path="selectedRowId">selectedRowId</option>
+                      <option data-type="placeholder" data-path="sender">sender</option>
+                      <option data-type="placeholder" data-path="customer">customer</option>
+                      <option data-type="placeholder" data-path="instance">instance</option>
+                      <option data-type="placeholder" data-path="gateway_id">gateway_id</option>
+                      <option data-type="placeholder" data-path="user_id">user_id</option>
+                      <option data-type="placeholder" data-path="webhook_payload.order_id">webhook_payload.order_id</option>
+                      <option data-type="path" data-path="webhook_payload.order_id">$path: webhook_payload.order_id</option>
+                    </select>
+                  </div>
+                </div>
+                <textarea class="form-control" id="body_${uid}" name="actionBody" rows="2" placeholder='{"foo":"bar"}'></textarea>
+                <div class="text-danger small mt-1" data-err-for="body_${uid}" style="display:none;">${'{{ translate('Invalid JSON') }}'}</div>
+                <div class="text-muted small mt-2">
+                  <strong>${'{{ translate('Mapping guide') }}'}:</strong>
+                  <div>${'{{ translate('Use placeholders to pull values from context:') }}'} <code>@{{ webhook_payload.order_id }}</code>, <code>@{{ sender }}</code>, <code>@{{ customer }}</code></div>
+                  <div>${'{{ translate('With default') }}'}: <code>@{{ webhook_payload.note || none }}</code></div>
+                  <div>${'{{ translate('Path directive') }}'}: <code>{"$path":"webhook_payload.order_id"}</code></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>`;
       rowDiv.querySelector('.remove').onclick = () => rowDiv.remove();
-      rowDiv.querySelector('.toggleAction').onclick = () => {
-        const aw = rowDiv.querySelector('.actionWrap');
-        aw.style.display = aw.style.display === 'none' ? '' : 'none';
-      };
+      const actionSwitch = rowDiv.querySelector('.toggleActionSwitch');
+      const aw = rowDiv.querySelector('.actionWrap');
+      actionSwitch.addEventListener('change', function(){
+        aw.style.display = this.checked ? '' : 'none';
+      });
+      // JSON validation
+      const headersEl = rowDiv.querySelector(`#headers_${uid}`);
+      const bodyEl = rowDiv.querySelector(`#body_${uid}`);
+      const hErr = rowDiv.querySelector(`[data-err-for="headers_${uid}"]`);
+      const bErr = rowDiv.querySelector(`[data-err-for="body_${uid}"]`);
+      function validateJson(el, errEl){
+        const val = (el.value||'').trim();
+        if(!val){ el.classList.remove('is-invalid'); errEl.style.display='none'; return; }
+        try{ JSON.parse(val); el.classList.remove('is-invalid'); errEl.style.display='none'; }
+        catch(e){ el.classList.add('is-invalid'); errEl.style.display=''; }
+      }
+      headersEl.addEventListener('input', ()=>validateJson(headersEl,hErr));
+      bodyEl.addEventListener('input', ()=>validateJson(bodyEl,bErr));
+      // Variable inserter
+      const varsEl = rowDiv.querySelector(`#vars_${uid}`);
+      varsEl.addEventListener('change', function(){
+        const opt = this.options[this.selectedIndex];
+        const type = opt.getAttribute('data-type');
+        const path = opt.getAttribute('data-path');
+        if(!type || !path) return;
+        const v = type === 'path' ? '{"$path":"'+path+'"}' : '{{ '+path+' }}';
+        const ta = bodyEl;
+        const start = ta.selectionStart||0, end = ta.selectionEnd||0;
+        ta.value = (ta.value||'').slice(0,start) + v + (ta.value||'').slice(end);
+        ta.focus(); ta.selectionStart = ta.selectionEnd = start + v.length;
+        this.value='';
+        bodyEl.dispatchEvent(new Event('input'));
+      });
       return rowDiv;
     }
 
@@ -264,13 +347,15 @@
           const rowTitle = row.querySelector('input[name="rowTitle"]').value;
           const rowDesc  = row.querySelector('input[name="rowDesc"]').value;
           const actWrap = row.querySelector('.actionWrap');
+          const enabledSwitch = row.querySelector('input[name="actionEnabled"]');
+          const isEnabled = enabledSwitch ? !!enabledSwitch.checked : false;
           const method = (row.querySelector('select[name="actionMethod"]').value || 'GET').toUpperCase();
           const url    = (row.querySelector('input[name="actionUrl"]').value || '').trim();
           const headersTxt = row.querySelector('textarea[name="actionHeaders"]').value || '';
           const bodyTxt    = row.querySelector('textarea[name="actionBody"]').value || '';
           if(rowId && rowTitle){
             rows.push({ rowId: rowId, title: rowTitle, description: rowDesc || null });
-            if(actWrap && actWrap.style.display !== 'none' && url){
+            if(isEnabled && url){
               let headers = null, body = null;
               try { headers = headersTxt ? JSON.parse(headersTxt) : null; } catch(e) { headers = null; }
               try { body = bodyTxt ? JSON.parse(bodyTxt) : null; } catch(e) { body = null; }

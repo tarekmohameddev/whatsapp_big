@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\IncomingApi;
 use App\Http\Controllers\Controller;
 use App\Models\Gateway;
 use App\Models\EvolutionWhatsappTemplate;
+use App\Models\DispatchLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Arr;
@@ -23,17 +24,22 @@ class EvolutionWebhookController extends Controller
         $serverUrl  = Arr::get($payload, 'server_url');
         $selectedId = Arr::get($payload, 'data.message.listResponseMessage.singleSelectReply.selectedRowId');
         $senderJid  = Arr::get($payload, 'sender')
-                    ?? Arr::get($payload, 'data.key.remoteJid')
-                    ?? Arr::get($payload, 'data.message.contextInfo.participant');
+                    ?? Arr::get($payload, 'data.message.contextInfo.participant')
+                    ?? Arr::get($payload, 'data.key.remoteJid');
+        // Prefer remoteJid as the actual end-customer contact
+        $contactJid = Arr::get($payload, 'data.key.remoteJid')
+                    ?? Arr::get($payload, 'data.message.contextInfo.participant')
+                    ?? Arr::get($payload, 'sender');
 
-        if (!$apiKey || !$selectedId || !$senderJid) {
+        if (!$apiKey || !$selectedId || !$contactJid) {
             return response()->json([
                 'status' => 'ignored',
                 'reason' => 'missing_required_fields',
             ], 200);
         }
 
-        $sender = $this->normalizeJidToPhone($senderJid);
+        $sender   = $this->normalizeJidToPhone($senderJid);
+        $customer = $this->normalizeJidToPhone($contactJid);
 
         $gateway = Gateway::query()
             ->where('channel', ChannelTypeEnum::WHATSAPP->value)
@@ -78,19 +84,29 @@ class EvolutionWebhookController extends Controller
         $context = [
             'selectedRowId' => $selectedId,
             'sender'        => $sender,
+            'customer'      => $customer,
+            'contact'       => $customer,
             'instance'      => Arr::get($payload, 'instance') ?? Arr::get($payload, 'data.instanceId'),
             'gateway_id'    => $gateway->id,
             'user_id'       => $gateway->user_id,
             'raw'           => $payload,
         ];
 
+        // Try to attach original webhook payload saved during dispatch (if any)
+        $context['webhook_payload'] = $this->resolveSourceWebhookPayload(
+            userId: $gateway->user_id,
+            sender: $customer,
+            evolutionTemplateId: $template->id
+        );
+
         try {
             $requestBuilder = Http::withHeaders((array) $headers)->timeout(10);
 
+            $resolvedBody = $this->mergeBody($body, $context);
             $response = match ($method) {
-                'POST', 'PUT', 'PATCH' => $requestBuilder->{$method === 'POST' ? 'post' : ($method === 'PUT' ? 'put' : 'patch')}($url, $this->mergeBody($body, $context)),
-                'DELETE' => $requestBuilder->delete($url, $this->mergeBody($body, $context)),
-                default   => $requestBuilder->get($url, $this->mergeBody($body, $context)),
+                'POST', 'PUT', 'PATCH' => $requestBuilder->{$method === 'POST' ? 'post' : ($method === 'PUT' ? 'put' : 'patch')}($url, $resolvedBody),
+                'DELETE' => $requestBuilder->delete($url, $resolvedBody),
+                default   => $requestBuilder->get($url, $resolvedBody),
             };
 
             return response()->json([
@@ -109,8 +125,148 @@ class EvolutionWebhookController extends Controller
     protected function mergeBody($body, array $context): array
     {
         $base = is_array($body) ? $body : [];
-        // Add under meta to avoid clobbering user-provided keys
-        return array_merge($base, ['meta' => $context]);
+        // Resolve dynamic placeholders against context; do NOT auto-attach meta
+        // so the outbound body is exactly what the user defined (backward safe).
+        $resolved = $this->interpolateBody($base, $context);
+        return $resolved;
+    }
+
+    /**
+     * Interpolate placeholders in the action body using context values.
+     * Supports:
+     *  - String placeholders: "{{ path.to.value }}" (with optional default: "{{ path || default }}")
+     *  - Object directive: { "$path": "path.to.value" }
+     */
+    protected function interpolateBody($node, array $context)
+    {
+        if (is_array($node)) {
+            // $path directive: replace entire node with resolved value
+            if (array_key_exists('$path', $node) && is_string($node['$path'])) {
+                return $this->getValueByPath($context, $node['$path']);
+            }
+
+            $result = [];
+            foreach ($node as $key => $value) {
+                $result[$key] = $this->interpolateBody($value, $context);
+            }
+            return $result;
+        }
+
+        if (is_string($node)) {
+            // Match {{ path }} or {{ path || default }}
+            if (preg_match('/^\{\{\s*([^}|]+?)\s*(?:\|\|\s*(.*?)\s*)?\}\}$/', $node, $m)) {
+                $path = trim($m[1]);
+                $default = array_key_exists(2, $m) ? $m[2] : null;
+                $value = $this->getValueByPath($context, $path);
+                if ($value === null && $default !== null) {
+                    return $default;
+                }
+                return $value;
+            }
+        }
+
+        return $node;
+    }
+
+    protected function getValueByPath($data, string $path)
+    {
+        if ($path === '' || $path === '.') {
+            return $data;
+        }
+        $segments = explode('.', $path);
+        $cursor = $data;
+        foreach ($segments as $seg) {
+            $seg = trim($seg);
+            if ($seg === '') continue;
+            if (is_array($cursor)) {
+                // numeric index support
+                if (array_key_exists($seg, $cursor)) {
+                    $cursor = $cursor[$seg];
+                } elseif (ctype_digit($seg)) {
+                    $idx = (int) $seg;
+                    $cursor = $cursor[$idx] ?? null;
+                } else {
+                    $cursor = Arr::get($cursor, $seg);
+                }
+            } elseif (is_object($cursor)) {
+                $cursor = $cursor->{$seg} ?? null;
+            } else {
+                return null;
+            }
+            if ($cursor === null) {
+                return null;
+            }
+        }
+        return $cursor;
+    }
+
+    protected function resolveSourceWebhookPayload(int $userId, string $sender, int $evolutionTemplateId): ?array
+    {
+        try {
+            // Attempt 1: match user + sender contact + evolution template id
+            $query = DispatchLog::query()
+                ->where('user_id', $userId)
+                ->where('type', ChannelTypeEnum::WHATSAPP->value);
+
+            $candidate = (clone $query)
+                ->whereHas('contact', function ($q) use ($sender) {
+                    $q->where('whatsapp_contact', $sender)
+                      ->orWhere('whatsapp_contact', 'like', "%$sender%")
+                      ->orWhere('whatsapp_contact', 'like', "%+$sender%");
+                })
+                ->whereHas('message', function ($q) use ($evolutionTemplateId) {
+                    $q->where('meta_data->evolution_template_id', $evolutionTemplateId);
+                })
+                ->latest('id')
+                ->first();
+
+            // Attempt 2: any log for user with this template id and non-null webhook_payload
+            if (!$candidate) {
+                $candidate = (clone $query)
+                    ->whereHas('message', function ($q) use ($evolutionTemplateId) {
+                        $q->where('meta_data->evolution_template_id', $evolutionTemplateId);
+                    })
+                    ->whereNotNull('meta_data')
+                    ->latest('id')
+                    ->get()
+                    ->first(function ($log) {
+                        $meta = $log->meta_data;
+                        if (is_string($meta)) {
+                            $meta = json_decode($meta, true);
+                        }
+                        return Arr::get((array) $meta, 'webhook_payload') !== null;
+                    });
+            }
+
+            // Attempt 3: fallback latest for user with webhook_payload present
+            if (!$candidate) {
+                $candidate = (clone $query)
+                    ->whereNotNull('meta_data')
+                    ->latest('id')
+                    ->get()
+                    ->first(function ($log) {
+                        $meta = $log->meta_data;
+                        if (is_string($meta)) {
+                            $meta = json_decode($meta, true);
+                        }
+                        return Arr::get((array) $meta, 'webhook_payload') !== null;
+                    });
+            }
+
+            $log = $candidate;
+
+            if (!$log) return null;
+
+            $meta = $log->meta_data;
+            if (is_string($meta)) {
+                $decoded = json_decode($meta, true);
+                $meta = is_array($decoded) ? $decoded : [];
+            }
+            $saved = Arr::get($meta, 'webhook_payload');
+            return is_array($saved) ? $saved : (is_string($saved) ? (json_decode($saved, true) ?: null) : null);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     protected function normalizeJidToPhone(string $jid): string
