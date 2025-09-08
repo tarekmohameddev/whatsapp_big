@@ -184,7 +184,7 @@
 
     function addRow(rowData={}){
       const rowDiv = document.createElement('div');
-      rowDiv.className = 'border rounded p-3 mb-3';
+      rowDiv.className = 'row-item border rounded p-3 mb-3';
       const uid = 'r'+Math.random().toString(36).slice(2);
       rowDiv.innerHTML = `
         <div class="row g-2 align-items-end">
@@ -309,6 +309,7 @@
     function addSection(secData={}){
       const sec = document.createElement('div');
       sec.className = 'border rounded p-3 mb-3';
+      sec.setAttribute('data-section', '1');
       sec.innerHTML = `
         <div class="form-inner mb-2">
           <label class="form-label">{{ translate('Section Title') }}</label>
@@ -339,7 +340,7 @@
       document.querySelectorAll('.sectionsHidden').forEach(e => e.remove());
       const sections = [];
       const rowActions = {};
-      wrap.querySelectorAll('.border.rounded.p-3').forEach((secEl, i) => {
+      wrap.querySelectorAll('[data-section="1"]').forEach((secEl, i) => {
         const title = secEl.querySelector('input[name="sections_title[]"]').value || '';
         const rows = [];
         secEl.querySelectorAll('.rows > div').forEach(row => {
