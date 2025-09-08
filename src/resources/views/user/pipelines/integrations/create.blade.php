@@ -26,7 +26,9 @@
       <div class="card-body">
         <form action="{{ route('user.pipelines.integrations.store') }}" method="POST">
           @csrf
-          <div class="row g-4">
+          <div class="form-wrapper mb-4">
+            <h6 class="form-wrapper-title mb-3">{{ translate('General') }}</h6>
+            <div class="row g-4">
             <div class="col-xl-6">
               <div class="form-inner">
                 <label class="form-label">{{ translate('Name') }}</label>
@@ -46,18 +48,23 @@
               </div>
             </div>
 
+            </div>
+          </div>
+
             <div class="col-12"><hr /></div>
 
             <div class="col-xl-6">
               <div class="form-inner">
                 <label class="form-label">{{ translate('Allowed Methods') }}</label>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="allowed_methods[cloud_api]" value="1" id="m_cloud">
-                  <label class="form-check-label" for="m_cloud">{{ translate('Meta Cloud Official') }}</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="allowed_methods[evolution_api]" value="1" id="m_evo">
-                  <label class="form-check-label" for="m_evo">{{ translate('Evolution API') }}</label>
+                <div class="d-flex flex-wrap gap-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="allowed_methods[cloud_api]" value="1" id="m_cloud">
+                    <label class="form-check-label" for="m_cloud"><span class="badge bg-primary">{{ translate('Meta Cloud Official') }}</span></label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="allowed_methods[evolution_api]" value="1" id="m_evo">
+                    <label class="form-check-label" for="m_evo"><span class="badge bg-success">{{ translate('Evolution API') }}</span></label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -65,11 +72,15 @@
             <div class="col-xl-6">
               <div class="form-inner">
                 <label class="form-label">{{ translate('Allowed Gateways (IDs)') }}</label>
-                <small class="d-block mb-2">{{ translate('Choose gateways under each method') }}</small>
+                <small class="d-block mb-2">{{ translate('Gateways become active when their method is enabled') }}</small>
                 <div class="row g-3">
                   <div class="col-md-6">
                     <label class="form-label">{{ translate('Cloud API Gateways') }}</label>
-                    <select class="form-select select2-search" name="allowed_gateways[cloud_api][]" multiple>
+                    <div class="d-flex gap-2 mb-2">
+                      <button type="button" class="i-btn btn--sm btn--light btn-select-all" data-target="#allowed_cloud_gateways">{{ translate('Select All') }}</button>
+                      <button type="button" class="i-btn btn--sm btn--light btn-clear-all" data-target="#allowed_cloud_gateways">{{ translate('Clear') }}</button>
+                    </div>
+                    <select id="allowed_cloud_gateways" class="form-select select2-search" name="allowed_gateways[cloud_api][]" multiple data-related-method="m_cloud" data-placeholder="{{ translate('Search and select gateways') }}">
                       @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::CLOUD->value) as $g)
                         <option value="{{ $g->id }}">{{ $g->name }}</option>
                       @endforeach
@@ -77,7 +88,11 @@
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">{{ translate('Evolution API Gateways') }}</label>
-                    <select class="form-select select2-search" name="allowed_gateways[evolution_api][]" multiple>
+                    <div class="d-flex gap-2 mb-2">
+                      <button type="button" class="i-btn btn--sm btn--light btn-select-all" data-target="#allowed_evo_gateways">{{ translate('Select All') }}</button>
+                      <button type="button" class="i-btn btn--sm btn--light btn-clear-all" data-target="#allowed_evo_gateways">{{ translate('Clear') }}</button>
+                    </div>
+                    <select id="allowed_evo_gateways" class="form-select select2-search" name="allowed_gateways[evolution_api][]" multiple data-related-method="m_evo" data-placeholder="{{ translate('Search and select gateways') }}">
                       @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::EVOLUTION->value) as $g)
                         <option value="{{ $g->id }}">{{ $g->name }}</option>
                       @endforeach
@@ -90,8 +105,8 @@
             <div class="col-12"><hr /></div>
 
             <div class="col-xl-12">
-              <div class="form-inner">
-                <label class="form-label">{{ translate('Defaults (used when no rules match)') }}</label>
+              <div class="form-wrapper">
+                <h6 class="form-wrapper-title mb-3">{{ translate('Defaults (used when no rules match)') }}</h6>
                 <div class="row g-3">
                   <div class="col-md-4">
                     <label class="form-label">{{ translate('Default Method') }}</label>
@@ -145,6 +160,7 @@
 
             <div class="col-12">
               <h6 class="mb-2">{{ translate('Rules') }}</h6>
+              <p class="text-muted mb-3">{{ translate('Add conditional rules to select method, gateways and templates based on your payload.') }}</p>
               <div id="rules-container"></div>
               <button type="button" class="i-btn btn--sm btn--secondary mt-2" id="add-rule">{{ translate('Add Rule') }}</button>
             </div>
@@ -168,8 +184,12 @@
     const addBtn = document.getElementById('add-rule');
     function row(idx){
       return `
-      <div class="border rounded p-3 mb-3">
-        <div class="row g-3">
+      <div class=\"border rounded p-3 mb-3\">
+        <div class=\"d-flex justify-content-between align-items-center mb-2\">
+          <span class=\"badge bg-secondary\">{{ translate('Rule') }} #${idx + 1}</span>
+          <button class=\"i-btn btn--danger btn--sm remove-rule\" type=\"button\">&times;</button>
+        </div>
+        <div class=\"row g-3\">
           <div class="col-md-3">
             <label class="form-label">{{ translate('Rule Name') }}</label>
             <input class="form-control" name="rules[${idx}][name]" required />
@@ -232,12 +252,9 @@
               @endisset
             </select>
           </div>
-          <div class="col-md-2">
+          <div class=\"col-md-2\">
             <label class="form-label">{{ translate('Priority') }}</label>
             <input type="number" class="form-control" name="rules[${idx}][priority]" value="100" />
-          </div>
-          <div class="col-md-1 d-flex align-items-end">
-            <button class="i-btn btn--danger btn--sm remove-rule" type="button">&times;</button>
           </div>
         </div>
       </div>`;
@@ -266,6 +283,46 @@
         const method = e.target.value;
         row.querySelectorAll('.action-cloud').forEach(el=>el.classList.toggle('d-none', method!=='cloud_api'));
         row.querySelectorAll('.action-evo').forEach(el=>el.classList.toggle('d-none', method!=='evolution_api'));
+      }
+    });
+    // Gate gateway selects by allowed methods
+    function toggleGatewaySelects(){
+      document.querySelectorAll('select[data-related-method]').forEach(function(sel){
+        const methodCheckbox = document.getElementById(sel.getAttribute('data-related-method'));
+        const enabled = !!(methodCheckbox && methodCheckbox.checked);
+        sel.disabled = !enabled;
+        sel.classList.toggle('disabled', !enabled);
+      });
+    }
+    document.getElementById('m_cloud').addEventListener('change', toggleGatewaySelects);
+    document.getElementById('m_evo').addEventListener('change', toggleGatewaySelects);
+    toggleGatewaySelects();
+    // Init select2 if available with modern chips and placeholder
+    function initSelect2(scope){
+      if(window.jQuery && jQuery().select2){
+        jQuery(scope).find('.select2-search').select2({
+          width:'100%',
+          placeholder: function(){ return jQuery(this).data('placeholder') || '{{ translate('Select options') }}'; },
+          allowClear: true,
+          closeOnSelect: false,
+          templateSelection: function (data) { return data.text; },
+        });
+      }
+    }
+    initSelect2(document);
+    // Select All / Clear handlers
+    document.addEventListener('click', function(e){
+      if(e.target && e.target.classList.contains('btn-select-all')){
+        const sel = document.querySelector(e.target.getAttribute('data-target'));
+        if(!sel) return;
+        Array.from(sel.options).forEach(o=>o.selected=true);
+        if(window.jQuery && jQuery().select2){ jQuery(sel).trigger('change'); }
+      }
+      if(e.target && e.target.classList.contains('btn-clear-all')){
+        const sel = document.querySelector(e.target.getAttribute('data-target'));
+        if(!sel) return;
+        Array.from(sel.options).forEach(o=>o.selected=false);
+        if(window.jQuery && jQuery().select2){ jQuery(sel).val(null).trigger('change'); }
       }
     });
   })();

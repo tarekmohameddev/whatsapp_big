@@ -24,15 +24,18 @@
 
     <div class="card">
       <div class="card-body">
-        <div class="alert alert-info d-flex align-items-center gap-2" role="alert">
+        <div class="alert alert-info d-flex flex-wrap align-items-center gap-2" role="alert">
           <span>{{ translate('Webhook URL') }}:</span>
-          <code>{{ url('/api/integrations/' . $integration->uid) }}</code>
+          <code id="webhook-url">{{ url('/api/integrations/' . $integration->uid) }}</code>
+          <button type="button" class="i-btn btn--sm btn--secondary ms-2" id="copy-webhook">{{ translate('Copy') }}</button>
           <span class="ms-3">{{ translate('Header') }}: <code>X-Webhook-Secret: {{ $integration->webhook_secret }}</code></span>
         </div>
         <form action="{{ route('user.pipelines.integrations.update', $integration->uid) }}" method="POST">
           @csrf
           @method('PATCH')
-          <div class="row g-4">
+          <div class="form-wrapper mb-4">
+            <h6 class="form-wrapper-title mb-3">{{ translate('General') }}</h6>
+            <div class="row g-4">
             <div class="col-xl-6">
               <div class="form-inner">
                 <label class="form-label">{{ translate('Name') }}</label>
@@ -52,19 +55,23 @@
               </div>
             </div>
 
-            <div class="col-12"><hr /></div>
+            </div>
+          </div>
+          <div class="col-12"><hr /></div>
 
             <div class="col-xl-6">
               <div class="form-inner">
                 <label class="form-label">{{ translate('Allowed Methods') }}</label>
                 @php $allowed = (array) ($integration->allowed_methods ?? []); @endphp
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="allowed_methods[cloud_api]" value="1" id="m_cloud" {{ (isset($allowed['cloud_api']) && $allowed['cloud_api']) ? 'checked' : '' }}>
-                  <label class="form-check-label" for="m_cloud">{{ translate('Meta Cloud Official') }}</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="allowed_methods[evolution_api]" value="1" id="m_evo" {{ (isset($allowed['evolution_api']) && $allowed['evolution_api']) ? 'checked' : '' }}>
-                  <label class="form-check-label" for="m_evo">{{ translate('Evolution API') }}</label>
+                <div class="d-flex flex-wrap gap-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="allowed_methods[cloud_api]" value="1" id="m_cloud" {{ (isset($allowed['cloud_api']) && $allowed['cloud_api']) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="m_cloud"><span class="badge bg-primary">{{ translate('Meta Cloud Official') }}</span></label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="allowed_methods[evolution_api]" value="1" id="m_evo" {{ (isset($allowed['evolution_api']) && $allowed['evolution_api']) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="m_evo"><span class="badge bg-success">{{ translate('Evolution API') }}</span></label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -73,10 +80,15 @@
               <div class="form-inner">
                 <label class="form-label">{{ translate('Allowed Gateways (IDs)') }}</label>
                 @php $ag = (array) ($integration->allowed_gateways ?? []); @endphp
+                <small class="d-block mb-2">{{ translate('Gateways become active when their method is enabled') }}</small>
                 <div class="row g-3">
                   <div class="col-md-6">
                     <label class="form-label">{{ translate('Cloud API Gateways') }}</label>
-                    <select class="form-select select2-search" name="allowed_gateways[cloud_api][]" multiple>
+                    <div class="d-flex gap-2 mb-2">
+                      <button type="button" class="i-btn btn--sm btn--light btn-select-all" data-target="#allowed_cloud_gateways_edit">{{ translate('Select All') }}</button>
+                      <button type="button" class="i-btn btn--sm btn--light btn-clear-all" data-target="#allowed_cloud_gateways_edit">{{ translate('Clear') }}</button>
+                    </div>
+                    <select id="allowed_cloud_gateways_edit" class="form-select select2-search" name="allowed_gateways[cloud_api][]" multiple data-related-method="m_cloud" data-placeholder="{{ translate('Search and select gateways') }}">
                       @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::CLOUD->value) as $g)
                         <option value="{{ $g->id }}" {{ in_array($g->id, (array) ($ag['cloud_api'] ?? [])) ? 'selected' : '' }}>{{ $g->name }}</option>
                       @endforeach
@@ -84,7 +96,11 @@
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">{{ translate('Evolution API Gateways') }}</label>
-                    <select class="form-select select2-search" name="allowed_gateways[evolution_api][]" multiple>
+                    <div class="d-flex gap-2 mb-2">
+                      <button type="button" class="i-btn btn--sm btn--light btn-select-all" data-target="#allowed_evo_gateways_edit">{{ translate('Select All') }}</button>
+                      <button type="button" class="i-btn btn--sm btn--light btn-clear-all" data-target="#allowed_evo_gateways_edit">{{ translate('Clear') }}</button>
+                    </div>
+                    <select id="allowed_evo_gateways_edit" class="form-select select2-search" name="allowed_gateways[evolution_api][]" multiple data-related-method="m_evo" data-placeholder="{{ translate('Search and select gateways') }}">
                       @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::EVOLUTION->value) as $g)
                         <option value="{{ $g->id }}" {{ in_array($g->id, (array) ($ag['evolution_api'] ?? [])) ? 'selected' : '' }}>{{ $g->name }}</option>
                       @endforeach
@@ -97,9 +113,9 @@
             <div class="col-12"><hr /></div>
 
             <div class="col-xl-12">
-              <div class="form-inner">
+              <div class="form-wrapper">
                 @php $defaults = (array) ($integration->defaults ?? []); @endphp
-                <label class="form-label">{{ translate('Defaults (used when no rules match)') }}</label>
+                <h6 class="form-wrapper-title mb-3">{{ translate('Defaults (used when no rules match)') }}</h6>
                 <div class="row g-3">
                   <div class="col-md-4">
                     <label class="form-label">{{ translate('Default Method') }}</label>
@@ -152,6 +168,7 @@
 
             <div class="col-12">
               <h6 class="mb-2">{{ translate('Rules') }}</h6>
+              <p class="text-muted mb-3">{{ translate('Add conditional rules to select method, gateways and templates based on your payload.') }}</p>
               <div id="rules-container">
                 @foreach($rules as $i => $rule)
                 <div class="border rounded p-3 mb-3">
@@ -257,51 +274,52 @@
     let idx = {{ count($rules) }};
     function row(i){
       return `
-      <div class="border rounded p-3 mb-3">
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label">{{ translate('Rule Name') }}</label>
-            <input class="form-control" name="rules[${i}][name]" required />
+      <div class=\"border rounded p-3 mb-3\">
+        <div class=\"d-flex justify-content-between align-items-center mb-2\">
+          <span class=\"badge bg-secondary\">{{ translate('Rule') }} #${i + 1}</span>
+          <button class=\"i-btn btn--danger btn--sm remove-rule\" type=\"button\">&times;</button>
+        </div>
+        <div class=\"row g-3\">
+          <div class=\"col-md-3\">
+            <label class=\"form-label\">{{ translate('Rule Name') }}</label>
+            <input class=\"form-control\" name=\"rules[${i}][name]\" required />
           </div>
-          <div class="col-md-3">
-            <label class="form-label">{{ translate('Match Path') }}</label>
-            <input class="form-control" name="rules[${i}][match_path]" placeholder="order.category_id" required />
+          <div class=\"col-md-3\">
+            <label class=\"form-label\">{{ translate('Match Path') }}</label>
+            <input class=\"form-control\" name=\"rules[${i}][match_path]\" placeholder=\"order.category_id\" required />
           </div>
-          <div class="col-md-2">
-            <label class="form-label">{{ translate('Operator') }}</label>
-            <select class="form-select" name="rules[${i}][operator]">
-              <option value="equals">equals</option>
-              <option value="in">in</option>
-              <option value="not_equals">not_equals</option>
-              <option value="exists">exists</option>
-            </select>
+          <div class=\"col-md-2\">
+            <label class=\"form-label\">{{ translate('Operator') }}</label>
+            <select class=\"form-select\" name=\"rules[${i}][operator]\">\n              <option value=\"equals\">equals</option>\n              <option value=\"in\">in</option>\n              <option value=\"not_equals\">not_equals</option>\n              <option value=\"exists\">exists</option>\n            </select>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">{{ translate('Value') }}</label>
-            <input class="form-control" name="rules[${i}][value]" />
+          <div class=\"col-md-4\">
+            <label class=\"form-label\">{{ translate('Value') }}</label>
+            <input class=\"form-control\" name=\"rules[${i}][value]\" />
           </div>
-          <div class="col-12"><hr /></div>
-          <div class="col-md-3">
-            <label class="form-label">{{ translate('Action Method') }}</label>
-            <select class="form-select" name="rules[${i}][action][method]">
-              <option value="cloud_api">{{ translate('Meta Cloud Official') }}</option>
-              <option value="evolution_api">{{ translate('Evolution API') }}</option>
-            </select>
+          <div class=\"col-12\"><hr /></div>
+          <div class=\"col-md-3\">
+            <label class=\"form-label\">{{ translate('Action Method') }}</label>
+            <select class=\"form-select\" name=\"rules[${i}][action][method]\">\n              <option value=\"cloud_api\">{{ translate('Meta Cloud Official') }}</option>\n              <option value=\"evolution_api\">{{ translate('Evolution API') }}</option>\n            </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label">{{ translate('Gateway IDs (comma separated)') }}</label>
-            <input class="form-control" name="rules[${i}][action][gateway_ids_str]" placeholder="1,2" />
+          <div class=\"col-md-3 action-cloud d-none\">
+            <label class=\"form-label\">{{ translate('Cloud Gateways') }}</label>
+            <select class=\"form-select select2-search\" name=\"rules[${i}][action][cloud_gateway_ids][]\" multiple>\n              @foreach($cloudGateways->where('type', \\App\\Enums\\System\\Gateway\\WhatsAppGatewayTypeEnum::CLOUD->value) as $g)\n                <option value=\"{{ $g->id }}\">{{ $g->name }}</option>\n              @endforeach\n            </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label">{{ translate('Template ID') }}</label>
-            <input class="form-control" name="rules[${i}][action][template_id]" />
+          <div class=\"col-md-3 action-cloud d-none\">
+            <label class=\"form-label\">{{ translate('Cloud Template') }}</label>
+            <select class=\"form-select select2-search\" name=\"rules[${i}][action][cloud_template_id]\">\n              <option value=\"\">{{ translate('Select') }}</option>\n            </select>
           </div>
-          <div class="col-md-2">
-            <label class="form-label">{{ translate('Priority') }}</label>
-            <input type="number" class="form-control" name="rules[${i}][priority]" value="100" />
+          <div class=\"col-md-3 action-evo d-none\">
+            <label class=\"form-label\">{{ translate('Evolution Gateways') }}</label>
+            <select class=\"form-select select2-search\" name=\"rules[${i}][action][evolution_gateway_ids][]\" multiple>\n              @foreach($cloudGateways->where('type', \\App\\Enums\\System\\Gateway\\WhatsAppGatewayTypeEnum::EVOLUTION->value) as $g)\n                <option value=\"{{ $g->id }}\">{{ $g->name }}</option>\n              @endforeach\n            </select>
           </div>
-          <div class="col-md-1 d-flex align-items-end">
-            <button class="i-btn btn--danger btn--sm remove-rule" type="button">&times;</button>
+          <div class=\"col-md-3 action-evo d-none\">
+            <label class=\"form-label\">{{ translate('Evolution Template') }}</label>
+            <select class=\"form-select select2-search\" name=\"rules[${i}][action][evolution_template_id]\">\n              <option value=\"\">{{ translate('Select') }}</option>\n              @isset($evolutionTemplates)\n                @foreach($evolutionTemplates as $tpl)\n                  <option value=\"{{ $tpl->id }}\">{{ $tpl->name }}</option>\n                @endforeach\n              @endisset\n            </select>
+          </div>
+          <div class=\"col-md-2\">
+            <label class=\"form-label\">{{ translate('Priority') }}</label>
+            <input type=\"number\" class=\"form-control\" name=\"rules[${i}][priority]\" value=\"100\" />
           </div>
         </div>
       </div>`;
@@ -327,6 +345,60 @@
         const method = e.target.value;
         row.querySelectorAll('.action-cloud').forEach(el=>el.classList.toggle('d-none', method!=='cloud_api'));
         row.querySelectorAll('.action-evo').forEach(el=>el.classList.toggle('d-none', method!=='evolution_api'));
+      }
+    });
+    // Gate gateway selects by allowed methods
+    function toggleGatewaySelects(){
+      document.querySelectorAll('select[data-related-method]').forEach(function(sel){
+        const methodCheckbox = document.getElementById(sel.getAttribute('data-related-method'));
+        const enabled = !!(methodCheckbox && methodCheckbox.checked);
+        sel.disabled = !enabled;
+        sel.classList.toggle('disabled', !enabled);
+      });
+    }
+    document.getElementById('m_cloud').addEventListener('change', toggleGatewaySelects);
+    document.getElementById('m_evo').addEventListener('change', toggleGatewaySelects);
+    toggleGatewaySelects();
+    // Init select2 with placeholder and chips
+    function initSelect2(scope){
+      if(window.jQuery && jQuery().select2){
+        jQuery(scope).find('.select2-search').select2({
+          width:'100%',
+          placeholder: function(){ return jQuery(this).data('placeholder') || '{{ translate('Select options') }}'; },
+          allowClear: true,
+          closeOnSelect: false,
+          templateSelection: function (data) { return data.text; },
+        });
+      }
+    }
+    initSelect2(document);
+    // Select All / Clear handlers
+    document.addEventListener('click', function(e){
+      if(e.target && e.target.classList.contains('btn-select-all')){
+        const sel = document.querySelector(e.target.getAttribute('data-target'));
+        if(!sel) return;
+        Array.from(sel.options).forEach(o=>o.selected=true);
+        if(window.jQuery && jQuery().select2){ jQuery(sel).trigger('change'); }
+      }
+      if(e.target && e.target.classList.contains('btn-clear-all')){
+        const sel = document.querySelector(e.target.getAttribute('data-target'));
+        if(!sel) return;
+        Array.from(sel.options).forEach(o=>o.selected=false);
+        if(window.jQuery && jQuery().select2){ jQuery(sel).val(null).trigger('change'); }
+      }
+    });
+    // Copy webhook URL
+    document.getElementById('copy-webhook').addEventListener('click', function(){
+      const text = document.getElementById('webhook-url').innerText.trim();
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
       }
     });
   })();
