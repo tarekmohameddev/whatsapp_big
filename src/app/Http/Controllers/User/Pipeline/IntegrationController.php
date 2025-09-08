@@ -96,6 +96,11 @@ class IntegrationController extends Controller
             } elseif ($method === 'evolution_api') {
                 $action['gateway_ids'] = array_values(array_filter((array) Arr::get($action, 'evolution_gateway_ids', [])));
                 $action['template_id'] = Arr::get($action, 'evolution_template_id');
+            } else {
+                // Method not set: still accept generic gateway_ids / CSV
+                if (!isset($action['gateway_ids']) && isset($action['gateway_ids_str'])) {
+                    $action['gateway_ids'] = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
+                }
             }
             PipelineIntegrationRule::create([
                 'integration_id' => $integration->id,
@@ -186,6 +191,11 @@ class IntegrationController extends Controller
             } elseif ($method === 'evolution_api') {
                 $action['gateway_ids'] = array_values(array_filter((array) Arr::get($action, 'evolution_gateway_ids', [])));
                 $action['template_id'] = Arr::get($action, 'evolution_template_id');
+            } else {
+                // Method not set: still accept generic gateway_ids / CSV
+                if (!isset($action['gateway_ids']) && isset($action['gateway_ids_str'])) {
+                    $action['gateway_ids'] = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
+                }
             }
             $integration->rules()->updateOrCreate(
                 ['id' => Arr::get($rule, 'id')],

@@ -88,31 +88,68 @@ class IntegrationWebhookController extends Controller
 
     private function resolveAction(PipelineIntegration $integration, array $payload): ?array
     {
+        // Start from defaults
+        $defaults = $integration->defaults ?: [];
+        $resolved = [
+            'method' => Arr::get($defaults, 'method'),
+            'gateway_id' => Arr::get($defaults, 'gateway_id'),
+            'template_id' => Arr::get($defaults, 'template_id'),
+        ];
+
+        $allowedMethods = $integration->allowed_methods ?: null;
+        $allowedGateways = $integration->allowed_gateways ?: null;
+
+        // Merge actions of all matching rules (ascending priority). Later matches can set different fields.
         $rules = $integration->rules()->where('status', 'active')->orderBy('priority')->get();
         foreach ($rules as $rule) {
             $value = $this->getValueByPath($payload, $rule->match_path);
-            if ($this->matches($rule->operator, $value, $rule->value)) {
-                $action = $rule->action ?: [];
-                $gatewayIds = Arr::get($action, 'gateway_ids');
-                if (!$gatewayIds && isset($action['gateway_ids_str'])) {
-                    $gatewayIds = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
-                }
-                return [
-                    'method' => Arr::get($action, 'method'),
-                    'gateway_id' => $gatewayIds ? Arr::first($gatewayIds) : Arr::get($integration->defaults, 'gateway_id'),
-                    'template_id' => Arr::get($action, 'template_id'),
-                ];
+            if (!$this->matches($rule->operator, $value, $rule->value)) {
+                continue;
+            }
+
+            $action = (array) ($rule->action ?: []);
+            $method = Arr::get($action, 'method');
+
+            // Accept gateway ids from either array or CSV string
+            $gatewayIds = Arr::get($action, 'gateway_ids');
+            if (!$gatewayIds && isset($action['gateway_ids_str'])) {
+                $gatewayIds = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
+            }
+
+            // Merge: last matching rule wins per field
+            if ($method) {
+                $resolved['method'] = $method;
+            }
+            if ($gatewayIds && is_array($gatewayIds) && count($gatewayIds) > 0) {
+                $resolved['gateway_id'] = Arr::first($gatewayIds);
+            }
+            if (array_key_exists('template_id', $action) && Arr::get($action, 'template_id')) {
+                $resolved['template_id'] = Arr::get($action, 'template_id');
             }
         }
-        $defaults = $integration->defaults ?: [];
-        if (!empty($defaults['method']) && (!isset($integration->allowed_methods) || Arr::get($integration->allowed_methods, $defaults['method']))) {
-            return [
-                'method' => $defaults['method'],
-                'gateway_id' => Arr::get($defaults, 'gateway_id'),
-                'template_id' => Arr::get($defaults, 'template_id'),
-            ];
+
+        // Require that a method is finally decided
+        if (empty($resolved['method'])) {
+            return null;
         }
-        return null;
+
+        // Enforce allowed methods (when configured)
+        if (is_array($allowedMethods) && !empty($allowedMethods)) {
+            if (!Arr::get($allowedMethods, $resolved['method'])) {
+                return null;
+            }
+        }
+
+        // Enforce allowed gateways (when configured)
+        if (is_array($allowedGateways) && !empty($allowedGateways) && !empty($resolved['gateway_id'])) {
+            $allowed = array_map('strval', $allowedGateways);
+            if (!in_array((string) $resolved['gateway_id'], $allowed, true)) {
+                // Fall back to defaults (or leave null to be resolved later by gateway manager)
+                $resolved['gateway_id'] = Arr::get($defaults, 'gateway_id');
+            }
+        }
+
+        return $resolved;
     }
 
     private function matches(string $op = 'equals', $value, $expectation): bool
