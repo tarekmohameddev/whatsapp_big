@@ -142,8 +142,24 @@ class IntegrationWebhookController extends Controller
 
         // Enforce allowed gateways (when configured)
         if (is_array($allowedGateways) && !empty($allowedGateways) && !empty($resolved['gateway_id'])) {
-            $allowed = array_map('strval', $allowedGateways);
-            if (!in_array((string) $resolved['gateway_id'], $allowed, true)) {
+            // allowed_gateways can be either flat array ["13", "14"] or method-keyed {"evolution_api": ["13", "14"]}
+            $allowed = [];
+            if (isset($allowedGateways[$resolved['method']])) {
+                // Method-keyed structure
+                $allowed = array_map('strval', (array) $allowedGateways[$resolved['method']]);
+            } else {
+                // Flat structure - check if it's a flat array of gateway IDs
+                $firstValue = reset($allowedGateways);
+                if (is_array($firstValue)) {
+                    // It's method-keyed but method not found, so no gateways allowed for this method
+                    $allowed = [];
+                } else {
+                    // Flat array of gateway IDs
+                    $allowed = array_map('strval', $allowedGateways);
+                }
+            }
+            
+            if (!empty($allowed) && !in_array((string) $resolved['gateway_id'], $allowed, true)) {
                 // Fall back to defaults (or leave null to be resolved later by gateway manager)
                 $resolved['gateway_id'] = Arr::get($defaults, 'gateway_id');
             }
