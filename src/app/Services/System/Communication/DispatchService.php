@@ -503,6 +503,10 @@ class DispatchService
           if ($request->input('method') === 'evolution_api' && $request->filled('evolution_template_id')) {
                $messageMeta['evolution_template_id'] = (int) $request->input('evolution_template_id');
           }
+          // Include resolved variables for downstream interpolation
+          if ($request->has('variables')) {
+               $messageMeta['variables'] = (array) $request->input('variables');
+          }
           
           return Message::create([
                'user_id'      => $user?->id,

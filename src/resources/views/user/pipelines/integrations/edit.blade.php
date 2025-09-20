@@ -160,6 +160,30 @@
                       @endisset
                     </select>
                   </div>
+                  <div class="col-12"><hr /></div>
+                  <div class="col-12">
+                    <label class="form-label">{{ translate('Variables Mapping (Defaults)') }}</label>
+                    <div id="default-vars-wrap">
+                      @php $defaultVars = collect(($defaults['variables'] ?? []))->values(); @endphp
+                      @foreach($defaultVars as $vi => $var)
+                      <div class="row g-2 align-items-end mb-2">
+                        <div class="col-md-4">
+                          <label class="form-label">{{ translate('Variable Name') }}</label>
+                          <input class="form-control" name="defaults[variables][{{ $vi }}][name]" value="{{ $var['name'] ?? '' }}" />
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">{{ translate('JSON Path') }}</label>
+                          <input class="form-control" name="defaults[variables][{{ $vi }}][path]" value="{{ $var['path'] ?? '' }}" />
+                        </div>
+                        <div class="col-md-2">
+                          <button type="button" class="i-btn btn--danger btn--sm remove-default-var">&times;</button>
+                        </div>
+                      </div>
+                      @endforeach
+                    </div>
+                    <button type="button" class="i-btn btn--sm btn--light mt-2" id="add-default-var">{{ translate('Add Variable') }}</button>
+                    <div class="text-muted small mt-2">{{ translate('Define variable name and JSON path from webhook payload. Order matters for Cloud body placeholders.') }}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -235,6 +259,30 @@
                           @endforeach
                         @endisset
                       </select>
+                    </div>
+                    <div class="col-12"><hr /></div>
+                    <div class="col-12">
+                      <label class="form-label">{{ translate('Variables Mapping (Rule)') }}</label>
+                      @php $ruleVars = collect(($act['variables'] ?? []))->values(); @endphp
+                      <div class="rule-vars-wrap" data-idx="{{ $i }}">
+                        @foreach($ruleVars as $rvi => $var)
+                        <div class="row g-2 align-items-end mb-2">
+                          <div class="col-md-4">
+                            <label class="form-label">{{ translate('Variable Name') }}</label>
+                            <input class="form-control" name="rules[{{ $i }}][variables][{{ $rvi }}][name]" value="{{ $var['name'] ?? '' }}" />
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label">{{ translate('JSON Path') }}</label>
+                            <input class="form-control" name="rules[{{ $i }}][variables][{{ $rvi }}][path]" value="{{ $var['path'] ?? '' }}" />
+                          </div>
+                          <div class="col-md-2">
+                            <button type="button" class="i-btn btn--danger btn--sm remove-rule-var">&times;</button>
+                          </div>
+                        </div>
+                        @endforeach
+                      </div>
+                      <button type="button" class="i-btn btn--sm btn--light mt-2 add-rule-var" data-idx="{{ $i }}">{{ translate('Add Variable') }}</button>
+                      <div class="text-muted small mt-2">{{ translate('Rule variables override defaults by name; new ones are appended.') }}</div>
                     </div>
                     <div class="col-md-2">
                       <label class="form-label">{{ translate('Priority') }}</label>
@@ -399,6 +447,70 @@
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
+      }
+    });
+    // Default variables repeater (edit)
+    let defaultVarIdx = {{ isset($defaultVars) ? $defaultVars->count() : 0 }};
+    function renderDefaultVarRow(i){
+      return `
+      <div class=\"row g-2 align-items-end mb-2\">
+        <div class=\"col-md-4\">
+          <label class=\"form-label\">{{ translate('Variable Name') }}</label>
+          <input class=\"form-control\" name=\"defaults[variables][${i}][name]\" placeholder=\"order_id\" />
+        </div>
+        <div class=\"col-md-6\">
+          <label class=\"form-label\">{{ translate('JSON Path') }}</label>
+          <input class=\"form-control\" name=\"defaults[variables][${i}][path]\" placeholder=\"order_id\" />
+        </div>
+        <div class=\"col-md-2\">
+          <button type=\"button\" class=\"i-btn btn--danger btn--sm remove-default-var\">&times;</button>
+        </div>
+      </div>`;
+    }
+    const addDefaultVarBtn = document.getElementById('add-default-var');
+    if(addDefaultVarBtn){
+      addDefaultVarBtn.addEventListener('click', function(){
+        document.getElementById('default-vars-wrap').insertAdjacentHTML('beforeend', renderDefaultVarRow(defaultVarIdx++));
+      });
+    }
+    document.addEventListener('click', function(e){
+      if(e.target && e.target.classList.contains('remove-default-var')){
+        e.target.closest('.row').remove();
+      }
+    });
+
+    // Rule variables repeater (edit)
+    const ruleVarCounters = {};
+    document.querySelectorAll('.rule-vars-wrap').forEach(function(wrap){
+      const idx = wrap.getAttribute('data-idx');
+      const count = wrap.querySelectorAll('.row.g-2').length;
+      ruleVarCounters[idx] = count;
+    });
+    function renderRuleVarRow(idx, i){
+      return `
+      <div class=\"row g-2 align-items-end mb-2\">
+        <div class=\"col-md-4\">
+          <label class=\"form-label\">{{ translate('Variable Name') }}</label>
+          <input class=\"form-control\" name=\"rules[${idx}][variables][${i}][name]\" placeholder=\"order_id\" />
+        </div>
+        <div class=\"col-md-6\">
+          <label class=\"form-label\">{{ translate('JSON Path') }}</label>
+          <input class=\"form-control\" name=\"rules[${idx}][variables][${i}][path]\" placeholder=\"order_id\" />
+        </div>
+        <div class=\"col-md-2\">
+          <button type=\"button\" class=\"i-btn btn--danger btn--sm remove-rule-var\">&times;</button>
+        </div>
+      </div>`;
+    }
+    document.addEventListener('click', function(e){
+      if(e.target && e.target.classList.contains('add-rule-var')){
+        const idx = e.target.getAttribute('data-idx');
+        ruleVarCounters[idx] = (ruleVarCounters[idx] || 0) + 1;
+        const wrap = document.querySelector(`.rule-vars-wrap[data-idx=\\"${idx}\\"]`);
+        if(wrap){ wrap.insertAdjacentHTML('beforeend', renderRuleVarRow(idx, ruleVarCounters[idx]-1)); }
+      }
+      if(e.target && e.target.classList.contains('remove-rule-var')){
+        e.target.closest('.row').remove();
       }
     });
   })();

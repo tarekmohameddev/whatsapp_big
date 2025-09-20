@@ -42,6 +42,26 @@ class IntegrationWebhookController extends Controller
         $method = Arr::get($resolved, 'method');
         $gatewayId = Arr::get($resolved, 'gateway_id');
         $templateId = Arr::get($resolved, 'template_id');
+        $variableMappings = (array) Arr::get($resolved, 'variables', []);
+
+        // Build variables from mappings against payload
+        $variables = [];
+        foreach ($variableMappings as $map) {
+            $name = Arr::get($map, 'name');
+            $path = Arr::get($map, 'path');
+            if (!$name || !$path) continue;
+            $value = $this->getValueByPath($payload, $path);
+            $variables[$name] = is_scalar($value) || is_null($value) ? (string) ($value ?? '') : json_encode($value);
+        }
+
+        // Fallback: if no mappings configured, auto-map top-level scalar keys
+        if (empty($variables)) {
+            foreach ($payload as $k => $v) {
+                if (is_scalar($v) || is_null($v)) {
+                    $variables[$k] = (string) ($v ?? '');
+                }
+            }
+        }
 
         $user = User::where('id', $integration->user_id)->first();
 
@@ -59,9 +79,33 @@ class IntegrationWebhookController extends Controller
             ],
             // carry full webhook payload as dispatch meta
             'dispatch_meta' => $payload,
+            // carry resolved variables for template substitution
+            'variables' => $variables,
         ]);
         if (in_array($method, ['cloud_api','evolution_api'], true)) {
             $req->merge(['cloud_api' => 'true']);
+        }
+
+        // For Cloud API templates, map variables to body placeholders in order
+        if ($method === 'cloud_api' && !empty($variables)) {
+            $i = 1;
+            foreach ($variables as $val) {
+                $req->merge(["body_placeholder_{$i}" => $val]);
+                $i++;
+            }
+        }
+
+        // Remove any {{var}} from free-text message body using resolved variables
+        if (!empty($variables)) {
+            $body = (string) Arr::get($req->input('message'), 'message_body', '');
+            if ($body) {
+                foreach ($variables as $key => $val) {
+                    $body = str_replace('{{'.$key.'}}', $val, $body);
+                }
+                // Remove any leftover placeholders
+                $body = preg_replace('/{{\s*[^}]+\s*}}/', '', $body);
+                $req->merge(['message' => ['message_body' => $body]]);
+            }
         }
 
         // Bind the synthetic request so internal request() helper uses it
@@ -94,6 +138,7 @@ class IntegrationWebhookController extends Controller
             'method' => Arr::get($defaults, 'method'),
             'gateway_id' => Arr::get($defaults, 'gateway_id'),
             'template_id' => Arr::get($defaults, 'template_id'),
+            'variables' => array_values((array) Arr::get($defaults, 'variables', [])),
         ];
 
         $allowedMethods = $integration->allowed_methods ?: null;
@@ -125,6 +170,15 @@ class IntegrationWebhookController extends Controller
             }
             if (array_key_exists('template_id', $action) && Arr::get($action, 'template_id')) {
                 $resolved['template_id'] = Arr::get($action, 'template_id');
+            }
+            // Merge variables mapping: later rules override by name
+            $ruleVars = collect((array) Arr::get($action, 'variables', []))
+                ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' && (string) Arr::get($v, 'path') !== '')
+                ->keyBy(fn($v) => Arr::get($v, 'name'));
+            if ($ruleVars->isNotEmpty()) {
+                $existing = collect($resolved['variables'] ?? [])->keyBy(fn($v) => Arr::get($v, 'name'));
+                $merged = $existing->merge($ruleVars)->values()->all();
+                $resolved['variables'] = $merged;
             }
         }
 

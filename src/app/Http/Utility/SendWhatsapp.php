@@ -322,6 +322,12 @@ class SendWhatsapp
             // Build payload from template and merge the recipient number
             $payload = array_merge((array) $tpl->payload, ['number' => $number]);
 
+            // Interpolate {{var}} placeholders using message meta variables
+            $variables = Arr::get($message->meta_data ?? [], 'variables', []);
+            if (is_array($variables) && !empty($variables)) {
+                $payload = $this->interpolateTemplatePayload($payload, $variables);
+            }
+
             // Choose endpoint path based on template type
             switch ($tpl->type) {
                 case EvolutionWhatsappTemplateTypeEnum::SIMPLE_TXT:
@@ -362,6 +368,31 @@ class SendWhatsapp
                         ? Arr::get($responseData, 'message')
                         : $response->body();
         throw new Exception($errorMessage ?: 'Failed To Dispatch via Evolution API');
+    }
+
+    /**
+     * Recursively interpolate strings in Evolution template payload using {{var}} placeholders.
+     */
+    protected function interpolateTemplatePayload($node, array $variables)
+    {
+        if (is_array($node)) {
+            $result = [];
+            foreach ($node as $key => $value) {
+                $result[$key] = $this->interpolateTemplatePayload($value, $variables);
+            }
+            return $result;
+        }
+        if (is_string($node)) {
+            // Replace each {{name}} with variables[name]; remove unknown placeholders
+            $out = $node;
+            foreach ($variables as $k => $v) {
+                $out = str_replace('{{'.$k.'}}', (string) $v, $out);
+            }
+            // Strip any remaining double-curly placeholders
+            $out = preg_replace('/{{\s*[^}]+\s*}}/', '', $out);
+            return $out;
+        }
+        return $node;
     }
 
     /**

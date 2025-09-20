@@ -55,17 +55,27 @@ class IntegrationController extends Controller
             'allowed_methods' => 'nullable|array',
             'allowed_gateways' => 'nullable|array',
             'defaults' => 'nullable|array',
+            'defaults.variables' => 'nullable|array',
+            'defaults.variables.*.name' => 'required_with:defaults.variables|string|max:100',
+            'defaults.variables.*.path' => 'required_with:defaults.variables|string|max:255',
             'rules' => 'nullable|array',
             'rules.*.name' => 'required_with:rules|string|max:255',
             'rules.*.match_path' => 'required_with:rules|string|max:255',
             'rules.*.operator' => 'nullable|string|in:equals,in,not_equals,exists',
             'rules.*.value' => 'nullable|string|max:255',
             'rules.*.action' => 'nullable|array',
+            'rules.*.variables' => 'nullable|array',
+            'rules.*.variables.*.name' => 'required_with:rules.*.variables|string|max:100',
+            'rules.*.variables.*.path' => 'required_with:rules.*.variables|string|max:255',
             'rules.*.priority' => 'nullable|integer|min:0',
             'rules.*.status' => 'nullable|string|in:active,inactive',
         ]);
         // Normalize defaults gateway/template based on selected method and per-method selects
         $defaults = (array) Arr::get($data, 'defaults', []);
+        // Clean default variables
+        $defaults['variables'] = collect((array) Arr::get($defaults, 'variables', []))
+            ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' && (string) Arr::get($v, 'path') !== '')
+            ->values()->all();
         $defaultMethod = Arr::get($defaults, 'method');
         if ($defaultMethod === 'cloud_api') {
             $defaults['gateway_id'] = Arr::get($defaults, 'cloud_gateway_id');
@@ -101,6 +111,15 @@ class IntegrationController extends Controller
                 if (!isset($action['gateway_ids']) && isset($action['gateway_ids_str'])) {
                     $action['gateway_ids'] = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
                 }
+            }
+            // Clean rule variables and attach into action
+            $variables = collect((array) Arr::get($rule, 'variables', []))
+                ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' && (string) Arr::get($v, 'path') !== '')
+                ->values()->all();
+            if (!empty($variables)) {
+                $action['variables'] = $variables;
+            } else {
+                unset($action['variables']);
             }
             PipelineIntegrationRule::create([
                 'integration_id' => $integration->id,
@@ -149,6 +168,9 @@ class IntegrationController extends Controller
             'allowed_methods' => 'nullable|array',
             'allowed_gateways' => 'nullable|array',
             'defaults' => 'nullable|array',
+            'defaults.variables' => 'nullable|array',
+            'defaults.variables.*.name' => 'required_with:defaults.variables|string|max:100',
+            'defaults.variables.*.path' => 'required_with:defaults.variables|string|max:255',
             'rules' => 'nullable|array',
             'rules.*.id' => 'nullable|integer',
             'rules.*.name' => 'required_with:rules|string|max:255',
@@ -156,11 +178,17 @@ class IntegrationController extends Controller
             'rules.*.operator' => 'nullable|string|in:equals,in,not_equals,exists',
             'rules.*.value' => 'nullable|string|max:255',
             'rules.*.action' => 'nullable|array',
+            'rules.*.variables' => 'nullable|array',
+            'rules.*.variables.*.name' => 'required_with:rules.*.variables|string|max:100',
+            'rules.*.variables.*.path' => 'required_with:rules.*.variables|string|max:255',
             'rules.*.priority' => 'nullable|integer|min:0',
             'rules.*.status' => 'nullable|string|in:active,inactive',
         ]);
         // Normalize defaults like in store
         $defaults = (array) Arr::get($data, 'defaults', []);
+        $defaults['variables'] = collect((array) Arr::get($defaults, 'variables', []))
+            ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' && (string) Arr::get($v, 'path') !== '')
+            ->values()->all();
         $defaultMethod = Arr::get($defaults, 'method');
         if ($defaultMethod === 'cloud_api') {
             $defaults['gateway_id'] = Arr::get($defaults, 'cloud_gateway_id');
@@ -196,6 +224,14 @@ class IntegrationController extends Controller
                 if (!isset($action['gateway_ids']) && isset($action['gateway_ids_str'])) {
                     $action['gateway_ids'] = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
                 }
+            }
+            $variables = collect((array) Arr::get($rule, 'variables', []))
+                ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' && (string) Arr::get($v, 'path') !== '')
+                ->values()->all();
+            if (!empty($variables)) {
+                $action['variables'] = $variables;
+            } else {
+                unset($action['variables']);
             }
             $integration->rules()->updateOrCreate(
                 ['id' => Arr::get($rule, 'id')],
