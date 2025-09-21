@@ -2,6 +2,7 @@
     $isMembershipActive = ['user.plan.create', 'user.payment.*', 'user.manual.payment.*'];
     $isCreditLogsActive = ['user.report.credit.*'];
     $isReportsActive    = ['user.report.record.*', 'user.report.payment.detail', 'user.plan.subscription'];
+    $isEvolutionReportsActive = ['user.template.whatsapp.evolution.analytics.*'];
 
     $isContactAttributesActive  = ['user.contact.settings.*'];
     $isContactGroupActive       = ['user.contact.groups.*'];
@@ -367,7 +368,7 @@
                     </div>
                 </li>
                 <li class="menu">
-                    <a class="menu-link {{ menuActive($isTemplateActive) }}" href="javascript:void(0)">
+                    <a class="menu-link {{ request()->routeIs('user.template.whatsapp.evolution.analytics.*') ? '' : menuActive($isTemplateActive) }}" href="javascript:void(0)">
                         <span class="menu-symbol">
                             <i class="ri-stack-line"></i>
                         </span>
@@ -414,7 +415,7 @@
                                         </span>
                                         <p>{{ translate('WhatsApp') }}</p>
                                     </a>
-                                    <div class="side-menu-dropdown collapse show {{ menuShow(['user.template.index', 'user.template.whatsapp.evolution.*']) }}" id="tplWhatsApp">
+                                    <div class="side-menu-dropdown collapse {{ menuShow(['user.template.index', 'user.template.whatsapp.evolution.index', 'user.template.whatsapp.evolution.create', 'user.template.whatsapp.evolution.store', 'user.template.whatsapp.evolution.edit', 'user.template.whatsapp.evolution.update', 'user.template.whatsapp.evolution.destroy']) }}" id="tplWhatsApp">
                                         <ul class="sub-menu">
                                             <li class="sub-menu-item">
                                                 <a class="sidebar-menu-link {{ request()->routeis('user.template.index') && request()->channel == \App\Enums\System\ChannelTypeEnum::WHATSAPP->value ? 'active' : '' }}"
@@ -423,7 +424,7 @@
                                                 </a>
                                             </li>
                                             <li class="sub-menu-item">
-                                                <a class="sidebar-menu-link {{ request()->routeis('user.template.whatsapp.evolution.*') ? 'active' : '' }}"
+                                                <a class="sidebar-menu-link {{ (request()->routeis('user.template.whatsapp.evolution.*') && !request()->routeIs('user.template.whatsapp.evolution.analytics.*')) ? 'active' : '' }}"
                                                    href="{{ route('user.template.whatsapp.evolution.index') }}">
                                                     <p>{{ translate('Evolution API') }}</p>
                                                 </a>
@@ -436,7 +437,7 @@
                     </div>
                 </li>
                 <li class="menu">
-                    <a class="menu-link {{ menuActive(array_merge($isCreditLogsActive, $isReportsActive)) }}"
+                    <a class="menu-link {{ menuActive(array_merge($isCreditLogsActive, $isReportsActive, $isEvolutionReportsActive)) }}"
                         href="javascript:void(0)">
                         <span class="menu-symbol">
                             <i class="ri-bar-chart-2-line"></i>
@@ -446,8 +447,8 @@
                             <i class="ri-arrow-right-s-line"></i>
                         </span>
                     </a>
-                    <div class="sub-menu-wrapper {{ menuShow(array_merge($isCreditLogsActive, $isReportsActive)) }}"
-                        {{ menuShow(array_merge($isCreditLogsActive, $isReportsActive)) == 'show' ? "style='opacity:1;visibility:visible;'" : '' }}>
+                    <div class="sub-menu-wrapper {{ menuShow(array_merge($isCreditLogsActive, $isReportsActive, $isEvolutionReportsActive)) }}"
+                        {{ menuShow(array_merge($isCreditLogsActive, $isReportsActive, $isEvolutionReportsActive)) == 'show' ? "style='opacity:1;visibility:visible;'" : '' }}>
                         <div class="sub-menu-container">
                             <div class="d-flex align-items-center gap-4 mb-3 px-2 sub-menu-header">
                                 <span class="back-to-menu" role="button">
@@ -532,6 +533,41 @@
                                                 <a class="sidebar-menu-link {{ request()->routeis('user.report.credit.whatsapp') ? 'active' : '' }}"
                                                     href="{{ route('user.report.credit.whatsapp') }}">
                                                     <p>{{ translate('WhatsApp') }}</p>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <li class="sidebar-menu-item">
+                                    <a class="sidebar-menu-link collapsed"
+                                        data-bs-toggle="collapse" href="#evolutionReports" role="button"
+                                        aria-expanded="false" aria-controls="evolutionReports">
+                                        <span>
+                                            <i class="ri-pie-chart-2-line"></i>
+                                        </span>
+                                        <p> {{ translate('Evolution API Reports') }} <small>
+                                                <i class="ri-arrow-down-s-line"></i>
+                                            </small>
+                                        </p>
+                                    </a>
+                                    <div class="side-menu-dropdown collapse {{ menuShow($isEvolutionReportsActive) }}" id="evolutionReports">
+                                        <ul class="sub-menu">
+                                            <li class="sub-menu-item">
+                                                <a class="sidebar-menu-link {{ request()->routeIs('user.template.whatsapp.evolution.analytics.clicks') ? 'active' : '' }}"
+                                                   href="{{ route('user.template.whatsapp.evolution.analytics.clicks') }}">
+                                                    <p>{{ translate('Button Clicks') }}</p>
+                                                </a>
+                                            </li>
+                                            <li class="sub-menu-item">
+                                                <a class="sidebar-menu-link {{ request()->routeIs('user.template.whatsapp.evolution.analytics.clicks_summary') ? 'active' : '' }}"
+                                                   href="{{ route('user.template.whatsapp.evolution.analytics.clicks_summary') }}">
+                                                    <p>{{ translate('Clicks Summary') }}</p>
+                                                </a>
+                                            </li>
+                                            <li class="sub-menu-item">
+                                                <a class="sidebar-menu-link {{ request()->routeIs('user.template.whatsapp.evolution.analytics.http_logs') ? 'active' : '' }}"
+                                                   href="{{ route('user.template.whatsapp.evolution.analytics.http_logs') }}">
+                                                    <p>{{ translate('HTTP Action Logs') }}</p>
                                                 </a>
                                             </li>
                                         </ul>

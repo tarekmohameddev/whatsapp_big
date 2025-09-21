@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Enums\System\ChannelTypeEnum;
 use App\Enums\System\Gateway\WhatsAppGatewayTypeEnum;
+use App\Models\EvolutionButtonClick;
+use App\Models\EvolutionHttpActionLog;
 
 class EvolutionWebhookController extends Controller
 {
@@ -99,6 +101,35 @@ class EvolutionWebhookController extends Controller
             evolutionTemplateId: $template->id
         );
 
+        // Persist button click log regardless of action execution result
+        try {
+            $rowTitle = null; $rowDescription = null;
+            $sections = Arr::get($template->payload ?? [], 'sections', []);
+            foreach ($sections as $section) {
+                foreach (Arr::get($section, 'rows', []) as $row) {
+                    if (Arr::get($row, 'rowId') === $selectedId) {
+                        $rowTitle = Arr::get($row, 'title');
+                        $rowDescription = Arr::get($row, 'description');
+                        break 2;
+                    }
+                }
+            }
+
+            EvolutionButtonClick::create([
+                'user_id'        => $gateway->user_id,
+                'template_id'    => $template->id,
+                'gateway_id'     => $gateway->id,
+                'selected_row_id'=> $selectedId,
+                'row_title'      => $rowTitle,
+                'row_description'=> $rowDescription,
+                'sender'         => $sender,
+                'customer'       => $customer,
+                'raw_payload'    => $payload,
+            ]);
+        } catch (\Throwable $e) {
+            // Swallow logging errors
+        }
+
         try {
             $requestBuilder = Http::withHeaders((array) $headers)->timeout(10);
 
@@ -109,12 +140,50 @@ class EvolutionWebhookController extends Controller
                 default   => $requestBuilder->get($url, $resolvedBody),
             };
 
+            // Log HTTP action result
+            try {
+                EvolutionHttpActionLog::create([
+                    'user_id'         => $gateway->user_id,
+                    'template_id'     => $template->id,
+                    'gateway_id'      => $gateway->id,
+                    'selected_row_id' => $selectedId,
+                    'method'          => $method,
+                    'url'             => $url,
+                    'request_headers' => (array) $headers,
+                    'request_body'    => is_array($resolvedBody) ? $resolvedBody : null,
+                    'response_status' => $response->status(),
+                    'response_body'   => Str::limit($response->body(), 10000, '...'),
+                    'sender'          => $sender,
+                    'customer'        => $customer,
+                    'context_meta'    => $context,
+                ]);
+            } catch (\Throwable $e) {}
+
             return response()->json([
                 'status'        => 'processed',
                 'http_status'   => $response->status(),
                 'response_body' => $this->truncate($response->body()),
             ], 200);
         } catch (\Throwable $e) {
+            // Log HTTP action error
+            try {
+                EvolutionHttpActionLog::create([
+                    'user_id'         => $gateway->user_id,
+                    'template_id'     => $template->id,
+                    'gateway_id'      => $gateway->id,
+                    'selected_row_id' => $selectedId,
+                    'method'          => $method,
+                    'url'             => $url,
+                    'request_headers' => (array) $headers,
+                    'request_body'    => is_array($body) ? $body : null,
+                    'response_status' => null,
+                    'response_body'   => null,
+                    'error_message'   => $e->getMessage(),
+                    'sender'          => $sender,
+                    'customer'        => $customer,
+                    'context_meta'    => $context,
+                ]);
+            } catch (\Throwable $ie) {}
             return response()->json([
                 'status'  => 'error',
                 'message' => $e->getMessage(),

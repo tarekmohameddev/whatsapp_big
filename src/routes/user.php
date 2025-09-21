@@ -577,6 +577,11 @@ Route::middleware([
                     Route::get('/{uid}/edit', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'edit'])->name('edit');
                     Route::patch('/{uid}', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'update'])->name('update');
                     Route::delete('/{uid}', [\App\Http\Controllers\User\Template\WhatsappEvolutionTemplateController::class, 'destroy'])->name('destroy');
+
+                        // Analytics and logs
+                        Route::get('/analytics/clicks', [\App\Http\Controllers\User\Template\WhatsappEvolutionAnalyticsController::class, 'clicks'])->name('analytics.clicks');
+                        Route::get('/analytics/clicks-summary', [\App\Http\Controllers\User\Template\WhatsappEvolutionAnalyticsController::class, 'clicksSummary'])->name('analytics.clicks_summary');
+                        Route::get('/analytics/http-logs', [\App\Http\Controllers\User\Template\WhatsappEvolutionAnalyticsController::class, 'httpLogs'])->name('analytics.http_logs');
                 });
         });
 
