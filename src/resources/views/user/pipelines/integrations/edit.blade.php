@@ -128,8 +128,10 @@
                               @endisset
                             </select>
                             @php $tVars = collect(($t['variables'] ?? []))->values(); @endphp
-                            <div class="small text-muted mt-1">{{ translate('Add variable mappings for this target (optional). Leave value empty to use JSON path.') }}</div>
-                            <div class="target-vars" data-rule="{{ $i }}" data-target="{{ $ti }}">
+                            <div class="small text-muted mt-1 cloud-help d-none">{{ translate('Configure Cloud Template parameters below. These values fill template placeholders when dispatching.') }}</div>
+                            <div class="cloud-template-params d-none" data-rule="{{ $i }}" data-target="{{ $ti }}"></div>
+                            <div class="small text-muted mt-1 evo-help d-none">{{ translate('Add variable mappings for this target (optional). Leave value empty to use JSON path.') }}</div>
+                            <div class="target-vars evo-block d-none" data-rule="{{ $i }}" data-target="{{ $ti }}">
                               @foreach($tVars as $tvi => $tv)
                               <div class="row g-2 align-items-end mb-2">
                                 <div class="col-md-4">
@@ -150,7 +152,7 @@
                               </div>
                               @endforeach
                             </div>
-                            <button type="button" class="i-btn btn--sm btn--light add-target-var" data-rule="{{ $i }}" data-target="{{ $ti }}">{{ translate('Add Target Variable') }}</button>
+                            <button type="button" class="i-btn btn--sm btn--light add-target-var evo-block d-none" data-rule="{{ $i }}" data-target="{{ $ti }}">{{ translate('Add Target Variable') }}</button>
                           </div>
                           <div class="col-md-1">
                             <button type="button" class="i-btn btn--danger btn--sm remove-target">&times;</button>
@@ -262,10 +264,20 @@
       const methodSel = row.querySelector('select.target-method');
       const gwSel = row.querySelector('select.target-gateway');
       const tplSel = row.querySelector('select.target-template');
+      const cloudParams = row.querySelector('.cloud-template-params');
+      const cloudHelp = row.querySelector('.cloud-help');
+      const evoVars = row.querySelector('.target-vars');
+      const evoAddBtn = row.querySelector('.add-target-var');
+      const evoHelp = row.querySelector('.evo-help');
       if(!methodSel || !gwSel || !tplSel) return;
       const method = methodSel.value;
       rebuildOptions(gwSel, METHOD_GATEWAYS[method] || [], '{{ translate('Select gateway') }}');
       if(method === 'cloud_api'){
+        cloudParams && cloudParams.classList.remove('d-none');
+        cloudHelp && cloudHelp.classList.remove('d-none');
+        evoVars && evoVars.classList.add('d-none');
+        evoAddBtn && evoAddBtn.classList.add('d-none');
+        evoHelp && evoHelp.classList.add('d-none');
         const cloudId = gwSel.value;
         if(cloudId && window.jQuery){
           jQuery.get(TEMPLATE_FETCH_URL, { cloud_id: cloudId }).done(function(resp){
@@ -276,6 +288,11 @@
           rebuildOptions(tplSel, [], '{{ translate('Select Cloud template') }}');
         }
       } else {
+        cloudParams && cloudParams.classList.add('d-none');
+        cloudHelp && cloudHelp.classList.add('d-none');
+        evoVars && evoVars.classList.remove('d-none');
+        evoAddBtn && evoAddBtn.classList.remove('d-none');
+        evoHelp && evoHelp.classList.remove('d-none');
         rebuildOptions(tplSel, METHOD_TEMPLATES[method] || [], '{{ translate('Select template') }}');
       }
     }
@@ -362,6 +379,79 @@
         const methodSel = row.querySelector('select.target-method');
         if(methodSel && methodSel.value === 'cloud_api'){
           updateTargetRow(row);
+        }
+      }
+      if(e.target && e.target.classList.contains('target-template')){
+        const row = e.target.closest('.row');
+        const methodSel = row.querySelector('select.target-method');
+        const tplSel = row.querySelector('select.target-template');
+        const cloudParams = row.querySelector('.cloud-template-params');
+        if(methodSel && methodSel.value === 'cloud_api' && window.jQuery && cloudParams){
+          const tplId = tplSel.value;
+          if(!tplId){ cloudParams.innerHTML=''; return; }
+          const url = "{{ route('user.template.get', ['uid' => 'UID_PLACEHOLDER']) }}".replace('UID_PLACEHOLDER', tplId);
+          jQuery.get(url).done(function(data){
+            try {
+              const components = (data && data.components) ? data.components : [];
+              const body = components.find(c=>c.type==='BODY');
+              let bodyCount = 0;
+              if(body && body.text){
+                const matches = String(body.text).match(/\{\{\d+\}\}/g);
+                bodyCount = matches ? matches.length : 0;
+              }
+              const btnContainer = components.find(c=>c.type==='BUTTONS');
+              const urlButtons = [];
+              if(btnContainer && Array.isArray(btnContainer.buttons)){
+                btnContainer.buttons.forEach((b, idx)=>{
+                  if(b.type==='URL'){
+                    const m = (b.url||'').match(/\{\{\d+\}\}/g);
+                    const pc = m ? m.length : 1;
+                    urlButtons.push({ index: idx, count: pc });
+                  }
+                });
+              }
+              let html = '';
+              if(bodyCount>0){
+                html += `<div class=\"mb-2\"><strong>{{ translate('BODY parameters') }}</strong></div>`;
+                for(let i=1;i<=bodyCount;i++){
+                  html += `
+                  <div class=\"row g-2 align-items-end mb-2\">
+                    <div class=\"col-md-3\"><label class=\"form-label\">{{ translate('Param') }} #${i}</label>
+                      <select class=\"form-select\" name=\"rules[${row.closest('[data-idx]')?.getAttribute('data-idx')||0}][action][targets][${row.querySelector('select.target-template').name.match(/targets\]\[(\d+)\]/)[1]}][template_params][body][${i-1}][source]\">
+                        <option value=\"static\">{{ translate('Static') }}</option>
+                        <option value=\"path\">{{ translate('JSON Path') }}</option>
+                      </select>
+                    </div>
+                    <div class=\"col-md-5\"><label class=\"form-label\">{{ translate('Value') }}</label>
+                      <input class=\"form-control\" name=\"rules[${row.closest('[data-idx]')?.getAttribute('data-idx')||0}][action][targets][${row.querySelector('select.target-template').name.match(/targets\]\[(\d+)\]/)[1]}][template_params][body][${i-1}][value]\" placeholder=\"STATIC or order.customer.name\" />
+                    </div>
+                  </div>`;
+                }
+              }
+              if(urlButtons.length){
+                html += `<div class=\"mb-2\"><strong>{{ translate('BUTTON URL parameters') }}</strong></div>`;
+                urlButtons.forEach((btn, bi)=>{
+                  for(let j=1;j<=btn.count;j++){
+                    html += `
+                    <div class=\"row g-2 align-items-end mb-2\">
+                      <input type=\"hidden\" name=\"rules[${row.closest('[data-idx]')?.getAttribute('data-idx')||0}][action][targets][${row.querySelector('select.target-template').name.match(/targets\]\[(\d+)\]/)[1]}][template_params][buttons][${bi}][index]\" value=\"${btn.index}\">
+                      <input type=\"hidden\" name=\"rules[${row.closest('[data-idx]')?.getAttribute('data-idx')||0}][action][targets][${row.querySelector('select.target-template').name.match(/targets\]\[(\d+)\]/)[1]}][template_params][buttons][${bi}][sub_type]\" value=\"URL\">
+                      <div class=\"col-md-3\"><label class=\"form-label\">{{ translate('Button') }} #${btn.index} {{ translate('Param') }} #${j}</label>
+                        <select class=\"form-select\" name=\"rules[${row.closest('[data-idx]')?.getAttribute('data-idx')||0}][action][targets][${row.querySelector('select.target-template').name.match(/targets\]\[(\d+)\]/)[1]}][template_params][buttons][${bi}][parameters][${j-1}][source]\">
+                          <option value=\"static\">{{ translate('Static') }}</option>
+                          <option value=\"path\">{{ translate('JSON Path') }}</option>
+                        </select>
+                      </div>
+                      <div class=\"col-md-5\"><label class=\"form-label\">{{ translate('Value') }}</label>
+                        <input class=\"form-control\" name=\"rules[${row.closest('[data-idx]')?.getAttribute('data-idx')||0}][action][targets][${row.querySelector('select.target-template').name.match(/targets\]\[(\d+)\]/)[1]}][template_params][buttons][${bi}][parameters][${j-1}][value]\" placeholder=\"STATIC or order.id\" />
+                      </div>
+                    </div>`;
+                  }
+                });
+              }
+              cloudParams.innerHTML = html || `<div class=\"text-muted\">{{ translate('No parameters in this template') }}</div>`;
+            } catch(e){ cloudParams.innerHTML = `<div class=\"text-danger\">{{ translate('Failed to load template parameters') }}</div>`; }
+          }).fail(function(){ cloudParams.innerHTML = `<div class=\"text-danger\">{{ translate('Failed to load template') }}</div>`; });
         }
       }
     });

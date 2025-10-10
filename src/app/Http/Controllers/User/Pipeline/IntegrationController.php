@@ -82,6 +82,7 @@ class IntegrationController extends Controller
                     $method = Arr::get($t, 'method');
                     $gatewayId = Arr::get($t, 'gateway_id');
                     $templateId = Arr::get($t, 'template_id');
+                    $templateParams = Arr::get($t, 'template_params');
                     $tVars = collect((array) Arr::get($t, 'variables', []))
                         ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' || (string) Arr::get($v, 'path') !== '' || (string) Arr::get($v, 'value') !== '')
                         ->values()->all();
@@ -96,6 +97,7 @@ class IntegrationController extends Controller
                         'gateway_id' => $gatewayId,
                         'template_id' => $templateId,
                         'variables' => $tVars ?: null,
+                        'template_params' => $templateParams ?: null,
                     ];
                 })
                 ->filter()
@@ -203,6 +205,7 @@ class IntegrationController extends Controller
                     $method = Arr::get($t, 'method');
                     $gatewayId = Arr::get($t, 'gateway_id');
                     $templateId = Arr::get($t, 'template_id');
+                    $templateParams = Arr::get($t, 'template_params');
                     $tVars = collect((array) Arr::get($t, 'variables', []))
                         ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' || (string) Arr::get($v, 'path') !== '' || (string) Arr::get($v, 'value') !== '')
                         ->values()->all();
@@ -217,6 +220,7 @@ class IntegrationController extends Controller
                         'gateway_id' => $gatewayId,
                         'template_id' => $templateId,
                         'variables' => $tVars ?: null,
+                        'template_params' => $templateParams ?: null,
                     ];
                 })
                 ->filter()

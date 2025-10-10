@@ -244,15 +244,10 @@ class TemplateService
       * @return array
       */
      public function returnTemplateData(string|int|null $uid = null, ?User $user = null) : array {
-
           $template = $this->templateManager->getSpecificLogByColumn(
                model: new Template(),
-               column: "uid",
+               column: "id",
                value: $uid,
-               attributes: [
-                    "plugin" => true,
-                    "user_id" => @$user?->id
-               ]
           );
 
           return $template->template_data;

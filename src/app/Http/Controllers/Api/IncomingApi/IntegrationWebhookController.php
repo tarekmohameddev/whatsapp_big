@@ -118,12 +118,45 @@ class IntegrationWebhookController extends Controller
             $req->merge(['cloud_api' => 'true']);
         }
 
-        // For Cloud API templates, map variables to body placeholders in order
-        if ($method === 'cloud_api' && !empty($variables)) {
-            $i = 1;
-            foreach ($variables as $val) {
-                $req->merge(["body_placeholder_{$i}" => $val]);
-                $i++;
+        // For Cloud API templates, resolve per-template params into placeholders
+        if ($method === 'cloud_api') {
+            $templateParams = (array) Arr::get($selectedTarget, 'template_params', []);
+            // BODY placeholders: body_placeholder_{i}
+            $bodyParams = (array) Arr::get($templateParams, 'body', []);
+            if (!empty($bodyParams)) {
+                $i = 0;
+                foreach ($bodyParams as $param) {
+                    $source = Arr::get($param, 'source', 'static');
+                    $value = '';
+                    if ($source === 'path') {
+                        $path = (string) Arr::get($param, 'path', Arr::get($param, 'value'));
+                        $val = $path ? $this->getValueByPath($payload, $path) : null;
+                        $value = is_scalar($val) || is_null($val) ? (string) ($val ?? '') : json_encode($val);
+                    } else {
+                        $value = (string) Arr::get($param, 'value', '');
+                    }
+                    $req->merge(["body_placeholder_{$i}" => $value]);
+                    $i++;
+                }
+            }
+            // BUTTON URL placeholders: url_button_{index}
+            $buttons = (array) Arr::get($templateParams, 'buttons', []);
+            foreach ($buttons as $btn) {
+                if (strtoupper((string) Arr::get($btn, 'sub_type')) !== 'URL') continue;
+                $index = (string) Arr::get($btn, 'index', '0');
+                $params = (array) Arr::get($btn, 'parameters', []);
+                // Use the first parameter value for URL
+                $param = (array) Arr::first($params) ?: [];
+                $source = Arr::get($param, 'source', 'static');
+                $value = '';
+                if ($source === 'path') {
+                    $path = (string) Arr::get($param, 'path', Arr::get($param, 'value'));
+                    $val = $path ? $this->getValueByPath($payload, $path) : null;
+                    $value = is_scalar($val) || is_null($val) ? (string) ($val ?? '') : json_encode($val);
+                } else {
+                    $value = (string) Arr::get($param, 'value', '');
+                }
+                $req->merge(["url_button_{$index}" => $value]);
             }
         }
 
@@ -188,11 +221,13 @@ class IntegrationWebhookController extends Controller
                     $tMethod = Arr::get($t, 'method');
                     $tGateway = Arr::get($t, 'gateway_id');
                     $tTemplate = Arr::get($t, 'template_id');
+                    $tParams = Arr::get($t, 'template_params');
                     if (in_array($tMethod, ['cloud_api','evolution_api'], true) && $tGateway) {
                         $targets[] = [
                             'method' => $tMethod,
                             'gateway_id' => $tGateway,
                             'template_id' => $tTemplate,
+                            'template_params' => $tParams,
                         ];
                     }
                 }
