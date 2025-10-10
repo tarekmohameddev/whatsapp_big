@@ -8,7 +8,8 @@ Key capabilities:
 - Security via `X-Webhook-Secret` header (plain text password defined per integration)
 - Dynamic rules engine selecting method, gateway(s), and template(s) from the incoming JSON body (by dot paths)
 - Support for WhatsApp Cloud API templates and Evolution API templates
-- Variables mapping from webhook payload into templates and/or message body
+- Cloud API: per-template parameters UI (BODY and URL button placeholders) with values sourced from Static or JSON Path
+- Evolution API and free-text: variables mapping from webhook payload into template/message body
 - Full request payload is preserved on each dispatch log for traceability
 
 ## Data Model
@@ -46,7 +47,10 @@ Both cast relevant columns to arrays.
 - CRUD: `user/pipelines/integrations`
   - Create/Edit:
     - Name, Webhook Password (`X-Webhook-Secret`), Phone Path
-    - Rules (repeatable): match path/operator/value + Action Targets (multiple targets with method/gateway/template per target) + variables + priority + status
+    - Rules (repeatable): match path/operator/value + Action Targets (multiple targets with method/gateway/template per target)
+      - When Method = Cloud API: a per-template parameters section appears to define BODY and URL button placeholder inputs (each input can be Static or JSON Path)
+      - When Method = Evolution API: optional Variables Mapping appears (name + JSON Path)
+    - Priority and Status per rule
 
 ## Webhook
 - Method/Path: `POST /api/integrations/{uid}`
@@ -62,12 +66,37 @@ Both cast relevant columns to arrays.
 4. If no rules yield any targets → return 422 error `no_rules_matched`.
 5. Produce final instruction: `(Recipient Number, Method, Gateway, Template, Variables)` using selected target and merged variables.
 
-### Variables Mapping
-- Each mapping is `{ name: string, path: string }`.
-- Controller resolves variables by reading `path` from payload.
-- For WhatsApp Cloud API templates, resolved variables are also mapped to `body_placeholder_{n}` in request order to reuse the existing template input mechanism.
-- If no variable mappings are configured, top-level scalar keys are auto-mapped as a convenience.
-- Free-text message bodies have `{{var}}` placeholders replaced by resolved variables; any leftovers are removed.
+### Cloud API Template Parameters (New)
+- For Cloud API targets, the UI loads the selected template’s `template_data.components` and automatically detects placeholders:
+  - BODY: counts `{{n}}` placeholders in the BODY text
+  - BUTTONS (URL): detects each URL button and its `index`; counts `{{n}}` placeholders in the URL
+- For each detected placeholder, the UI renders an input where the value can come from either:
+  - Static: a literal string value
+  - JSON Path: a dot path resolved from the incoming webhook JSON
+- Saved under each target as `template_params` and transformed at webhook time into the request fields consumed by the existing Cloud template builder:
+  - BODY → `body_placeholder_{i}` (0-based index)
+  - URL button → `url_button_{index}` (per button index)
+
+Example stored shape under a target:
+```json
+{
+  "template_params": {
+    "body": [
+      { "source": "path", "value": "order.customer.name", "path": "order.customer.name" }
+    ],
+    "buttons": [
+      { "sub_type": "URL", "index": 0, "parameters": [ { "source": "static", "value": "32323" } ] }
+    ]
+  }
+}
+```
+
+### Variables Mapping (Evolution and Free-text)
+- For Evolution API and plain free-text bodies, you may optionally define Variables Mapping:
+  - Each mapping is `{ name: string, path: string }`
+  - Controller resolves variables by reading `path` from payload
+- Free-text message bodies have `{{var}}` placeholders replaced by resolved variables; any leftovers are removed
+- If no variables are configured, top-level scalar keys are auto-exposed as a convenience
 
 ## Dispatch
 - The webhook constructs a synthetic Request and invokes `DispatchService::storeDispatchLogs(WHATSAPP, ...)` to reuse existing sending logic.
@@ -76,18 +105,21 @@ Both cast relevant columns to arrays.
   - `method` (`cloud_api` or `evolution_api`)
   - `gateway_id`
   - `whatsapp_template_id` (Cloud) or `evolution_template_id` (Evolution)
-  - `message[message_body]` (optional plain text)
-  - `variables` (resolved variables)
+  - For Cloud API: placeholder fields set by webhook from `template_params`:
+    - `body_placeholder_{i}` (0-based)
+    - `url_button_{index}`
+  - `message[message_body]` (optional plain text for free-text flows)
+  - `variables` (Evolution/free-text only)
   - `dispatch_meta` (entire webhook payload for auditing)
-- The service now persists `webhook_payload` in each dispatch log `meta_data`.
+- The service persists `webhook_payload` in each dispatch log `meta_data`.
 
 ## Security
 - `X-Webhook-Secret` must match the configured `webhook_secret` in the user’s integration.
 - The endpoint is public but safely scoped to integration `uid` and secret header.
 
 ## Supported Methods
-- Cloud API (Meta official templates): picks `whatsapp_template_id`; placeholders are fed via `body_placeholder_{n}` and existing UI logic.
-- Evolution API: picks `evolution_template_id`. If no template selected, falls back to plain text.
+- Cloud API (Meta official templates): picks `whatsapp_template_id`; placeholders are fed via per-template parameters → `body_placeholder_{i}` and `url_button_{index}`; the existing builder generates keyed `components` for sending
+- Evolution API: picks `evolution_template_id`. If no template selected, falls back to plain text
 
 ## Failure Behavior
 - Missing secret or invalid integration → 401/404.
