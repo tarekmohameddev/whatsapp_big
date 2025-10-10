@@ -52,12 +52,6 @@ class IntegrationController extends Controller
             'name' => 'required|string|max:255',
             'webhook_secret' => 'required|string|max:255',
             'phone_path' => 'required|string|max:255',
-            'allowed_methods' => 'nullable|array',
-            'allowed_gateways' => 'nullable|array',
-            'defaults' => 'nullable|array',
-            'defaults.variables' => 'nullable|array',
-            'defaults.variables.*.name' => 'required_with:defaults.variables|string|max:100',
-            'defaults.variables.*.path' => 'required_with:defaults.variables|string|max:255',
             'rules' => 'nullable|array',
             'rules.*.name' => 'required_with:rules|string|max:255',
             'rules.*.match_path' => 'required_with:rules|string|max:255',
@@ -70,30 +64,12 @@ class IntegrationController extends Controller
             'rules.*.priority' => 'nullable|integer|min:0',
             'rules.*.status' => 'nullable|string|in:active,inactive',
         ]);
-        // Normalize defaults gateway/template based on selected method and per-method selects
-        $defaults = (array) Arr::get($data, 'defaults', []);
-        // Clean default variables
-        $defaults['variables'] = collect((array) Arr::get($defaults, 'variables', []))
-            ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' && (string) Arr::get($v, 'path') !== '')
-            ->values()->all();
-        $defaultMethod = Arr::get($defaults, 'method');
-        if ($defaultMethod === 'cloud_api') {
-            $defaults['gateway_id'] = Arr::get($defaults, 'cloud_gateway_id');
-            $defaults['template_id'] = Arr::get($defaults, 'cloud_template_id');
-        } elseif ($defaultMethod === 'evolution_api') {
-            $defaults['gateway_id'] = Arr::get($defaults, 'evolution_gateway_id');
-            $defaults['template_id'] = Arr::get($defaults, 'evolution_template_id');
-        }
-        $data['defaults'] = $defaults;
 
         $integration = PipelineIntegration::create([
             'user_id' => $user->id,
             'name' => Arr::get($data, 'name'),
             'webhook_secret' => Arr::get($data, 'webhook_secret'),
             'phone_path' => Arr::get($data, 'phone_path'),
-            'allowed_methods' => Arr::get($data, 'allowed_methods'),
-            'allowed_gateways' => Arr::get($data, 'allowed_gateways'),
-            'defaults' => Arr::get($data, 'defaults'),
         ]);
 
         foreach ((array) Arr::get($data, 'rules', []) as $rule) {
@@ -195,12 +171,6 @@ class IntegrationController extends Controller
             'name' => 'required|string|max:255',
             'webhook_secret' => 'required|string|max:255',
             'phone_path' => 'required|string|max:255',
-            'allowed_methods' => 'nullable|array',
-            'allowed_gateways' => 'nullable|array',
-            'defaults' => 'nullable|array',
-            'defaults.variables' => 'nullable|array',
-            'defaults.variables.*.name' => 'required_with:defaults.variables|string|max:100',
-            'defaults.variables.*.path' => 'required_with:defaults.variables|string|max:255',
             'rules' => 'nullable|array',
             'rules.*.id' => 'nullable|integer',
             'rules.*.name' => 'required_with:rules|string|max:255',
@@ -214,27 +184,11 @@ class IntegrationController extends Controller
             'rules.*.priority' => 'nullable|integer|min:0',
             'rules.*.status' => 'nullable|string|in:active,inactive',
         ]);
-        // Normalize defaults like in store
-        $defaults = (array) Arr::get($data, 'defaults', []);
-        $defaults['variables'] = collect((array) Arr::get($defaults, 'variables', []))
-            ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' && (string) Arr::get($v, 'path') !== '')
-            ->values()->all();
-        $defaultMethod = Arr::get($defaults, 'method');
-        if ($defaultMethod === 'cloud_api') {
-            $defaults['gateway_id'] = Arr::get($defaults, 'cloud_gateway_id');
-            $defaults['template_id'] = Arr::get($defaults, 'cloud_template_id');
-        } elseif ($defaultMethod === 'evolution_api') {
-            $defaults['gateway_id'] = Arr::get($defaults, 'evolution_gateway_id');
-            $defaults['template_id'] = Arr::get($defaults, 'evolution_template_id');
-        }
 
         $integration->update([
             'name' => Arr::get($data, 'name'),
             'webhook_secret' => Arr::get($data, 'webhook_secret'),
             'phone_path' => Arr::get($data, 'phone_path'),
-            'allowed_methods' => Arr::get($data, 'allowed_methods'),
-            'allowed_gateways' => Arr::get($data, 'allowed_gateways'),
-            'defaults' => $defaults,
         ]);
 
         $incomingRules = collect((array) Arr::get($data, 'rules', []));

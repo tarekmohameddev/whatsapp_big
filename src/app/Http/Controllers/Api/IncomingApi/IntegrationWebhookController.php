@@ -38,7 +38,7 @@ class IntegrationWebhookController extends Controller
 
         $resolved = $this->resolveAction($integration, $payload);
         if (!$resolved) {
-            return response()->json(['status' => 'ignored', 'reason' => 'no_rule_and_no_defaults'], 200);
+            return response()->json(['status' => 'error', 'message' => 'no_rules_matched'], 422);
         }
         $targets = (array) Arr::get($resolved, 'targets', []);
         $variableMappings = (array) Arr::get($resolved, 'variables', []);
@@ -93,10 +93,10 @@ class IntegrationWebhookController extends Controller
             $selectedTarget = $targets[$pick] ?? $targets[0] ?? null;
         }
 
-        // Fallback to legacy single resolution fields when no targets array
-        $method = $selectedTarget['method'] ?? Arr::get($resolved, 'method');
-        $gatewayId = $selectedTarget['gateway_id'] ?? Arr::get($resolved, 'gateway_id');
-        $templateId = $selectedTarget['template_id'] ?? Arr::get($resolved, 'template_id');
+        // Use selected target only; rules-only design
+        $method = $selectedTarget['method'] ?? null;
+        $gatewayId = $selectedTarget['gateway_id'] ?? null;
+        $templateId = $selectedTarget['template_id'] ?? null;
 
         $req = new \Illuminate\Http\Request();
         $req->setMethod('POST');
@@ -164,18 +164,11 @@ class IntegrationWebhookController extends Controller
 
     private function resolveAction(PipelineIntegration $integration, array $payload): ?array
     {
-        // Start from defaults
-        $defaults = $integration->defaults ?: [];
+        // Rules-only: start empty
         $resolved = [
             'targets' => [],
-            'method' => Arr::get($defaults, 'method'),
-            'gateway_id' => Arr::get($defaults, 'gateway_id'),
-            'template_id' => Arr::get($defaults, 'template_id'),
-            'variables' => array_values((array) Arr::get($defaults, 'variables', [])),
+            'variables' => [],
         ];
-
-        $allowedMethods = $integration->allowed_methods ?: null;
-        $allowedGateways = $integration->allowed_gateways ?: null;
 
         // Merge actions of all matching rules (ascending priority). Later matches can set different fields.
         $rules = $integration->rules()->where('status', 'active')->orderBy('priority')->get();
@@ -187,13 +180,6 @@ class IntegrationWebhookController extends Controller
             }
 
             $action = (array) ($rule->action ?: []);
-            $method = Arr::get($action, 'method');
-
-            // Accept gateway ids from either array or CSV string
-            $gatewayIds = Arr::get($action, 'gateway_ids');
-            if (!$gatewayIds && isset($action['gateway_ids_str'])) {
-                $gatewayIds = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
-            }
 
             // New: multi-targets support overrides legacy fields when present
             $targets = [];
@@ -212,16 +198,6 @@ class IntegrationWebhookController extends Controller
                 }
             }
 
-            // Merge: last matching rule wins per field
-            if ($method) {
-                $resolved['method'] = $method;
-            }
-            if ($gatewayIds && is_array($gatewayIds) && count($gatewayIds) > 0) {
-                $resolved['gateway_id'] = Arr::first($gatewayIds);
-            }
-            if (array_key_exists('template_id', $action) && Arr::get($action, 'template_id')) {
-                $resolved['template_id'] = Arr::get($action, 'template_id');
-            }
             // If multi-targets provided, they become the active rotation set
             if (!empty($targets)) {
                 $resolved['targets'] = $targets;
@@ -238,59 +214,9 @@ class IntegrationWebhookController extends Controller
             }
         }
 
-        // If multi-targets not set by rules, but defaults set, allow legacy single resolution
+        // If no targets were resolved by rules, return null
         if (empty($resolved['targets'])) {
-            if (empty($resolved['method'])) {
-                return null;
-            }
-        }
-
-        // Enforce allowed methods (when configured)
-        if (is_array($allowedMethods) && !empty($allowedMethods)) {
-            if (!empty($resolved['targets'])) {
-                $resolved['targets'] = array_values(array_filter($resolved['targets'], function ($t) use ($allowedMethods) {
-                    return (bool) Arr::get($allowedMethods, Arr::get($t, 'method'));
-                }));
-            } else {
-                if (!Arr::get($allowedMethods, $resolved['method'])) {
-                    return null;
-                }
-            }
-        }
-
-        // Enforce allowed gateways (when configured)
-        if (is_array($allowedGateways) && !empty($allowedGateways)) {
-            if (!empty($resolved['targets'])) {
-                $resolved['targets'] = array_values(array_filter($resolved['targets'], function ($t) use ($allowedGateways) {
-                    $method = Arr::get($t, 'method');
-                    $gatewayId = (string) Arr::get($t, 'gateway_id');
-                    $allowed = [];
-                    if (isset($allowedGateways[$method])) {
-                        $allowed = array_map('strval', (array) $allowedGateways[$method]);
-                    } else {
-                        $firstValue = reset($allowedGateways);
-                        if (!is_array($firstValue)) {
-                            $allowed = array_map('strval', $allowedGateways);
-                        }
-                    }
-                    return empty($allowed) || in_array($gatewayId, $allowed, true);
-                }));
-            } else {
-                if (!empty($resolved['gateway_id'])) {
-                    $allowed = [];
-                    if (isset($allowedGateways[$resolved['method']])) {
-                        $allowed = array_map('strval', (array) $allowedGateways[$resolved['method']]);
-                    } else {
-                        $firstValue = reset($allowedGateways);
-                        if (!is_array($firstValue)) {
-                            $allowed = array_map('strval', $allowedGateways);
-                        }
-                    }
-                    if (!empty($allowed) && !in_array((string) $resolved['gateway_id'], $allowed, true)) {
-                        $resolved['gateway_id'] = Arr::get($defaults, 'gateway_id');
-                    }
-                }
-            }
+            return null;
         }
 
         if (!empty($resolved['targets'])) {

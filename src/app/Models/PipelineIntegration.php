@@ -13,11 +13,7 @@ class PipelineIntegration extends Model
 
     protected $guarded = [];
 
-    protected $casts = [
-        'allowed_methods' => 'array',
-        'allowed_gateways' => 'array',
-        'defaults' => 'array',
-    ];
+    protected $casts = [];
 
     protected static function booted()
     {

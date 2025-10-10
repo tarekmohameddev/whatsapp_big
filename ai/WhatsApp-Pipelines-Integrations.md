@@ -21,9 +21,6 @@ Key capabilities:
   - `name` string
   - `webhook_secret` string
   - `phone_path` string (dot-notation path to recipient phone inside payload)
-  - `allowed_methods` json (e.g., `{ "cloud_api": true, "evolution_api": true }`)
-  - `allowed_gateways` json (either flat array of IDs or method-keyed arrays)
-  - `defaults` json (see Defaults below)
   - `timestamps`
 
 - `pipeline_integration_rules`
@@ -49,10 +46,7 @@ Both cast relevant columns to arrays.
 - CRUD: `user/pipelines/integrations`
   - Create/Edit:
     - Name, Webhook Password (`X-Webhook-Secret`), Phone Path
-    - Allowed Methods (Cloud/Evolution)
-    - Allowed Gateways (multi-select per method)
-    - Defaults (method + gateway/template dropdowns per method)
-    - Rules (repeatable): match path/operator/value + action method + gateway(s)/template (dropdowns) + priority + status
+    - Rules (repeatable): match path/operator/value + Action Targets (multiple targets with method/gateway/template per target) + variables + priority + status
 
 ## Webhook
 - Method/Path: `POST /api/integrations/{uid}`
@@ -62,12 +56,11 @@ Both cast relevant columns to arrays.
 ### Resolution Flow
 1. Load `PipelineIntegration` by `{uid}`; verify `X-Webhook-Secret`.
 2. Read recipient number using `phone_path` (dot path in body). If not found → ignored.
-3. Start with Defaults: `defaults.method`, `defaults.gateway_id`, `defaults.template_id`, `defaults.variables` (optional array of `{ name, path }`).
-4. Evaluate active Rules in ascending `priority`:
-   - If `match_path` with `operator` vs `value` matches, merge `action` into resolved result.
-   - Later matches override previous fields (method/gateway/template/variables).
-5. Enforce optional `allowed_methods` and `allowed_gateways` constraints. If not allowed → reject or fallback to defaults gateway.
-6. Produce final instruction: `(Recipient Number, Method, Gateway, Template, Variables)`.
+3. Evaluate active Rules in ascending `priority`:
+   - If `match_path` with `operator` vs `value` matches, the rule may provide Action Targets: an array of one or more targets, each with method, gateway and template.
+   - When a rule provides targets, that becomes the active rotation set for dispatch (round-robin).
+4. If no rules yield any targets → return 422 error `no_rules_matched`.
+5. Produce final instruction: `(Recipient Number, Method, Gateway, Template, Variables)` using selected target and merged variables.
 
 ### Variables Mapping
 - Each mapping is `{ name: string, path: string }`.
@@ -99,7 +92,7 @@ Both cast relevant columns to arrays.
 ## Failure Behavior
 - Missing secret or invalid integration → 401/404.
 - Missing recipient number (by `phone_path`) → `{ status: "ignored", reason: "phone_not_found" }`.
-- No rule matched and no defaults → `{ status: "ignored", reason: "no_rule_and_no_defaults" }`.
+- No rules produced any targets → `{ status: "error", "message": "no_rules_matched" }` (422).
 
 ## Examples
 
@@ -121,18 +114,13 @@ curl -X POST "https://your.domain.com/api/integrations/INTEGRATION_UID" \
 
 ### Sample Configuration
 - Phone Path: `order.customer.phone`
-- Defaults:
-  - Method: `evolution_api`
-  - Evolution Gateway: `<id>`
-  - Evolution Template: `<template_id>`
-  - Variables: `[ { "name": "order_id", "path": "order.id" }, { "name": "status", "path": "order.status" } ]`
 - Rules:
   - Rule A: `match_path=order.category_id`, `operator=equals`, `value=12`
-    - Action: Method=`cloud_api`, Cloud Gateway=`<id>`, Cloud Template=`<template_id>`
+    - Action Targets: `[ { method: cloud_api, gateway_id: <id>, template_id: <tpl> } ]`
   - Rule B: `match_path=order.department_id`, `operator=in`, `value=2,3,4`
-    - Action: Method=`evolution_api`, Evolution Gateways=`[<id1>,<id2>]`, Evolution Template=`<template_id>`
+    - Action Targets: `[ { method: evolution_api, gateway_id: <id1>, template_id: <tpl> }, { method: evolution_api, gateway_id: <id2>, template_id: <tpl> } ]`
 
-Result: The final method/template/gateway is derived from the highest-priority matching rule(s), else defaults.
+Result: The first rule that provides targets sets the rotation set; messages round-robin across those targets.
 
 ## Notes & Compatibility
 - Existing sending logic, queues, and gateway settings are preserved.
