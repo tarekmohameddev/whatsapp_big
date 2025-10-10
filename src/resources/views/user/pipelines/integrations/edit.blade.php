@@ -220,6 +220,73 @@
                     </div>
                     <div class="col-12"><hr /></div>
                     @php $act = (array) ($rule->action ?? []); @endphp
+                    <div class="col-12">
+                      <label class="form-label">{{ translate('Action Targets (Round-robin)') }}</label>
+                      <div class="targets-wrap" data-idx="{{ $i }}">
+                        @php $targets = collect(($act['targets'] ?? []))->values(); @endphp
+                        @foreach($targets as $ti => $t)
+                        <div class="row g-2 align-items-end mb-2">
+                          <div class="col-md-3">
+                            <label class="form-label">{{ translate('Method') }}</label>
+                            <select class="form-select target-method" name="rules[{{ $i }}][action][targets][{{ $ti }}][method]">
+                              <option value="cloud_api" {{ (($t['method'] ?? '') === 'cloud_api') ? 'selected' : '' }}>{{ translate('Meta Cloud Official') }}</option>
+                              <option value="evolution_api" {{ (($t['method'] ?? '') === 'evolution_api') ? 'selected' : '' }}>{{ translate('Evolution API') }}</option>
+                            </select>
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">{{ translate('Gateway') }}</label>
+                            <select class="form-select select2-search target-gateway" name="rules[{{ $i }}][action][targets][{{ $ti }}][gateway_id]">
+                              <option value="">{{ translate('Select') }}</option>
+                              @foreach($cloudGateways as $g)
+                                <option data-type="{{ $g->type }}" value="{{ $g->id }}" {{ ((string)($t['gateway_id'] ?? '') === (string)$g->id) ? 'selected' : '' }}>{{ $g->name }}</option>
+                              @endforeach
+                            </select>
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">{{ translate('Template') }}</label>
+                            <select class="form-select select2-search target-template" name="rules[{{ $i }}][action][targets][{{ $ti }}][template_id]">
+                              <option value="">{{ translate('Select (Cloud/Evolution)') }}</option>
+                              @isset($evolutionTemplates)
+                                @foreach($evolutionTemplates as $tpl)
+                                  <option data-method="evolution_api" value="{{ $tpl->id }}" {{ ((string)($t['template_id'] ?? '') === (string)$tpl->id) ? 'selected' : '' }}>{{ $tpl->name }}</option>
+                                @endforeach
+                              @endisset
+                            </select>
+                            @php $tVars = collect(($t['variables'] ?? []))->values(); @endphp
+                            <div class="small text-muted mt-1">{{ translate('Add variable mappings for this target (optional). Leave value empty to use JSON path.') }}</div>
+                            <div class="target-vars" data-rule="{{ $i }}" data-target="{{ $ti }}">
+                              @foreach($tVars as $tvi => $tv)
+                              <div class="row g-2 align-items-end mb-2">
+                                <div class="col-md-4">
+                                  <label class="form-label">{{ translate('Variable Name') }}</label>
+                                  <input class="form-control" name="rules[{{ $i }}][action][targets][{{ $ti }}][variables][{{ $tvi }}][name]" value="{{ $tv['name'] ?? '' }}" />
+                                </div>
+                                <div class="col-md-4">
+                                  <label class="form-label">{{ translate('JSON Path') }}</label>
+                                  <input class="form-control" name="rules[{{ $i }}][action][targets][{{ $ti }}][variables][{{ $tvi }}][path]" value="{{ $tv['path'] ?? '' }}" />
+                                </div>
+                                <div class="col-md-3">
+                                  <label class="form-label">{{ translate('Static Value (optional)') }}</label>
+                                  <input class="form-control" name="rules[{{ $i }}][action][targets][{{ $ti }}][variables][{{ $tvi }}][value]" value="{{ $tv['value'] ?? '' }}" />
+                                </div>
+                                <div class="col-md-1">
+                                  <button type="button" class="i-btn btn--danger btn--sm remove-target-var">&times;</button>
+                                </div>
+                              </div>
+                              @endforeach
+                            </div>
+                            <button type="button" class="i-btn btn--sm btn--light add-target-var" data-rule="{{ $i }}" data-target="{{ $ti }}">{{ translate('Add Target Variable') }}</button>
+                          </div>
+                          <div class="col-md-1">
+                            <button type="button" class="i-btn btn--danger btn--sm remove-target">&times;</button>
+                          </div>
+                        </div>
+                        @endforeach
+                      </div>
+                      <button type="button" class="i-btn btn--sm btn--light add-target" data-idx="{{ $i }}">{{ translate('Add Target') }}</button>
+                      <div class="text-muted small mt-2">{{ translate('Add one or more targets. Each target has Method, Gateway and Template. Messages will rotate across targets.') }}</div>
+                    </div>
+                    <div class="col-12"><hr /></div>
                     <div class="col-md-3">
                       <label class="form-label">{{ translate('Action Method') }}</label>
                       <select class="form-select" name="rules[{{ $i }}][action][method]">
@@ -320,6 +387,63 @@
     const wrap = document.getElementById('rules-container');
     const addBtn = document.getElementById('add-rule');
     let idx = {{ count($rules) }};
+    // Build gateway/template sources by method
+    const METHOD_GATEWAYS = {
+      cloud_api: [
+        @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::CLOUD->value) as $g)
+          { id: "{{ $g->id }}", name: "{{ addslashes($g->name) }}" },
+        @endforeach
+      ],
+      evolution_api: [
+        @foreach($cloudGateways->where('type', \App\Enums\System\Gateway\WhatsAppGatewayTypeEnum::EVOLUTION->value) as $g)
+          { id: "{{ $g->id }}", name: "{{ addslashes($g->name) }}" },
+        @endforeach
+      ],
+    };
+    const METHOD_TEMPLATES = {
+      cloud_api: [
+        // Cloud templates may be populated via existing UI elsewhere
+      ],
+      evolution_api: [
+        @isset($evolutionTemplates)
+          @foreach($evolutionTemplates as $tpl)
+            { id: "{{ $tpl->id }}", name: "{{ addslashes($tpl->name) }}" },
+          @endforeach
+        @endisset
+      ],
+    };
+    const TEMPLATE_FETCH_URL = "{{ route('user.template.fetch', ['type' => 'whatsapp']) }}";
+    function rebuildOptions(selectEl, items, placeholder){
+      const cur = selectEl.value;
+      let html = `<option value=\"\">${placeholder || '{{ translate('Select') }}'}</option>`;
+      items.forEach(function(it){ html += `<option value=\"${it.id}\">${it.name}</option>`; });
+      selectEl.innerHTML = html;
+      if (items.some(it => String(it.id) === String(cur))) {
+        selectEl.value = String(cur);
+      }
+      if (window.jQuery && jQuery().select2) { jQuery(selectEl).trigger('change.select2'); }
+    }
+    function updateTargetRow(row){
+      const methodSel = row.querySelector('select.target-method');
+      const gwSel = row.querySelector('select.target-gateway');
+      const tplSel = row.querySelector('select.target-template');
+      if(!methodSel || !gwSel || !tplSel) return;
+      const method = methodSel.value;
+      rebuildOptions(gwSel, METHOD_GATEWAYS[method] || [], '{{ translate('Select gateway') }}');
+      if(method === 'cloud_api'){
+        const cloudId = gwSel.value;
+        if(cloudId && window.jQuery){
+          jQuery.get(TEMPLATE_FETCH_URL, { cloud_id: cloudId }).done(function(resp){
+            const list = (resp && resp.templates) ? resp.templates.map(function(t){ return { id: t.id, name: t.name + (t.template_data && t.template_data.language ? ' ('+t.template_data.language+')' : '') }; }) : [];
+            rebuildOptions(tplSel, list, '{{ translate('Select Cloud template') }}');
+          }).fail(function(){ rebuildOptions(tplSel, [], '{{ translate('Select Cloud template') }}'); });
+        } else {
+          rebuildOptions(tplSel, [], '{{ translate('Select Cloud template') }}');
+        }
+      } else {
+        rebuildOptions(tplSel, METHOD_TEMPLATES[method] || [], '{{ translate('Select template') }}');
+      }
+    }
     function row(i){
       return `
       <div class=\"border rounded p-3 mb-3\">
@@ -393,6 +517,17 @@
         const method = e.target.value;
         row.querySelectorAll('.action-cloud').forEach(el=>el.classList.toggle('d-none', method!=='cloud_api'));
         row.querySelectorAll('.action-evo').forEach(el=>el.classList.toggle('d-none', method!=='evolution_api'));
+      }
+      if(e.target && e.target.classList.contains('target-method')){
+        const row = e.target.closest('.row');
+        updateTargetRow(row);
+      }
+      if(e.target && e.target.classList.contains('target-gateway')){
+        const row = e.target.closest('.row');
+        const methodSel = row.querySelector('select.target-method');
+        if(methodSel && methodSel.value === 'cloud_api'){
+          updateTargetRow(row);
+        }
       }
     });
     // Gate gateway selects by allowed methods
@@ -485,6 +620,60 @@
       const idx = wrap.getAttribute('data-idx');
       const count = wrap.querySelectorAll('.row.g-2').length;
       ruleVarCounters[idx] = count;
+    });
+
+    // Targets repeater (edit)
+    function renderTargetRow(idx, tIdx){
+      return `
+      <div class=\"row g-2 align-items-end mb-2\">\n        <div class=\"col-md-3\">\n          <label class=\"form-label\">{{ translate('Method') }}</label>\n          <select class=\"form-select target-method\" name=\"rules[${idx}][action][targets][${tIdx}][method]\">\n            <option value=\"cloud_api\">{{ translate('Meta Cloud Official') }}</option>\n            <option value=\"evolution_api\">{{ translate('Evolution API') }}</option>\n          </select>\n        </div>\n        <div class=\"col-md-4\">\n          <label class=\"form-label\">{{ translate('Gateway') }}</label>\n          <select class=\"form-select select2-search target-gateway\" name=\"rules[${idx}][action][targets][${tIdx}][gateway_id]\">\n            <option value=\"\">{{ translate('Select') }}</option>\n            @foreach($cloudGateways as $g)\n              <option data-type=\"{{ $g->type }}\" value=\"{{ $g->id }}\">{{ $g->name }}</option>\n            @endforeach\n          </select>\n        </div>\n        <div class=\"col-md-4\">\n          <label class=\"form-label\">{{ translate('Template') }}</label>\n          <select class=\"form-select select2-search target-template\" name=\"rules[${idx}][action][targets][${tIdx}][template_id]\">\n            <option value=\"\">{{ translate('Select (Cloud/Evolution)') }}</option>\n            @isset($evolutionTemplates)\n              @foreach($evolutionTemplates as $tpl)\n                <option data-method=\"evolution_api\" value=\"{{ $tpl->id }}\">{{ $tpl->name }}</option>\n              @endforeach\n            @endisset\n          </select>\n        </div>\n        <div class=\"col-md-1\">\n          <button type=\"button\" class=\"i-btn btn--danger btn--sm remove-target\">&times;</button>\n        </div>\n      </div>`;
+    }
+    document.addEventListener('click', function(e){
+      if(e.target && e.target.classList.contains('add-target')){
+        const idx = e.target.getAttribute('data-idx');
+        const wrap = document.querySelector(`.targets-wrap[data-idx="${idx}"]`);
+        const count = wrap ? wrap.querySelectorAll('.row.g-2').length : 0;
+        if(wrap){ 
+          wrap.insertAdjacentHTML('beforeend', renderTargetRow(idx, count)); 
+          initSelect2(wrap);
+          const row = wrap.querySelectorAll('.row.g-2').item(wrap.querySelectorAll('.row.g-2').length - 1);
+          if(row){ updateTargetRow(row); }
+        }
+      }
+      if(e.target && e.target.classList.contains('remove-target')){
+        e.target.closest('.row').remove();
+      }
+      if(e.target && e.target.classList.contains('add-target-var')){
+        const r = e.target.getAttribute('data-rule');
+        const t = e.target.getAttribute('data-target');
+        const wrap = document.querySelector(`.target-vars[data-rule="${r}"][data-target="${t}"]`);
+        if(!wrap) return;
+        const count = wrap.querySelectorAll('.row.g-2').length;
+        wrap.insertAdjacentHTML('beforeend', `
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-md-4">
+            <label class="form-label">{{ translate('Variable Name') }}</label>
+            <input class="form-control" name="rules[${r}][action][targets][${t}][variables][${count}][name]" placeholder="order_id" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ translate('JSON Path') }}</label>
+            <input class="form-control" name="rules[${r}][action][targets][${t}][variables][${count}][path]" placeholder="order.id" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ translate('Static Value (optional)') }}</label>
+            <input class="form-control" name="rules[${r}][action][targets][${t}][variables][${count}][value]" placeholder="STATIC_TEXT" />
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="i-btn btn--danger btn--sm remove-target-var">&times;</button>
+          </div>
+        </div>`);
+      }
+      if(e.target && e.target.classList.contains('remove-target-var')){
+        e.target.closest('.row').remove();
+      }
+    });
+    // Initialize existing target rows with correct options
+    document.querySelectorAll('.targets-wrap').forEach(function(wrap){
+      wrap.querySelectorAll('.row.g-2').forEach(function(row){ updateTargetRow(row); });
     });
     function renderRuleVarRow(idx, i){
       return `

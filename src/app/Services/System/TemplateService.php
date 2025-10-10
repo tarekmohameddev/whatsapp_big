@@ -314,8 +314,7 @@ class TemplateService
      public function getChannelSpecificTemplates(ChannelTypeEnum $channel, ?User $user = null): Collection {
 
           return Template::when($user, fn(Builder $q): Builder =>
-                                   $q->where("user_id", $user->id)
-                                        ->where("approval_status", TemplateApprovalStatusEnum::APPROVED), 
+                                   $q->where("user_id", $user->id),
                                         fn(Builder $q): Builder =>
                                              $q->whereNull("user_id"))
                               ->where([

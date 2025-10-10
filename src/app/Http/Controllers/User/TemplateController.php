@@ -233,8 +233,8 @@ class TemplateController extends Controller
      * @return JsonResponse
      */
     public function fetch(string $channel): JsonResponse {
-		
-        $templates = $this->templateService->getChannelSpecificTemplates(channel: ChannelTypeEnum::from(value: $channel));
+        $user = auth()->user();
+        $templates = $this->templateService->getChannelSpecificTemplates(channel: ChannelTypeEnum::from(value: $channel), user: $user);
 		return response()->json(['templates' => $templates]);
 	}
 

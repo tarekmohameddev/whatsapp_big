@@ -1077,7 +1077,6 @@ class DispatchService
                           ],
                       ];
                   } else {
-                     
                       foreach($template_message[$template_message_key]['example']["$value[1]_text"] as $template_key => $template_value) {
                           
                           $message[$template_message_key]["type"]         = strtolower($template_message[$template_message_key]["type"]);

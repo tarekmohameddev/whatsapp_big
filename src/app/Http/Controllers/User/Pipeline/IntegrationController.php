@@ -97,8 +97,38 @@ class IntegrationController extends Controller
         ]);
 
         foreach ((array) Arr::get($data, 'rules', []) as $rule) {
-            // Normalize action gateway_ids/template_id from per-method selects
+            // Normalize action to support multi-targets while keeping backward compatibility
             $action = (array) Arr::get($rule, 'action', []);
+            // New: targets structure
+            $targets = collect((array) Arr::get($action, 'targets', []))
+                ->map(function ($t) {
+                    $t = (array) $t;
+                    $method = Arr::get($t, 'method');
+                    $gatewayId = Arr::get($t, 'gateway_id');
+                    $templateId = Arr::get($t, 'template_id');
+                    $tVars = collect((array) Arr::get($t, 'variables', []))
+                        ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' || (string) Arr::get($v, 'path') !== '' || (string) Arr::get($v, 'value') !== '')
+                        ->values()->all();
+                    if (!in_array($method, ['cloud_api','evolution_api'], true)) {
+                        return null;
+                    }
+                    if ((string) $gatewayId === '') {
+                        return null;
+                    }
+                    return [
+                        'method' => $method,
+                        'gateway_id' => $gatewayId,
+                        'template_id' => $templateId,
+                        'variables' => $tVars ?: null,
+                    ];
+                })
+                ->filter()
+                ->values()
+                ->all();
+            if (!empty($targets)) {
+                $action['targets'] = $targets;
+            }
+            // Legacy per-method fields
             $method = Arr::get($action, 'method');
             if ($method === 'cloud_api') {
                 $action['gateway_ids'] = array_values(array_filter((array) Arr::get($action, 'cloud_gateway_ids', [])));
@@ -212,6 +242,36 @@ class IntegrationController extends Controller
         $integration->rules()->whereNotIn('id', $keepIds ?: [0])->delete();
         foreach ($incomingRules as $rule) {
             $action = (array) Arr::get($rule, 'action', []);
+            // New: normalize targets
+            $targets = collect((array) Arr::get($action, 'targets', []))
+                ->map(function ($t) {
+                    $t = (array) $t;
+                    $method = Arr::get($t, 'method');
+                    $gatewayId = Arr::get($t, 'gateway_id');
+                    $templateId = Arr::get($t, 'template_id');
+                    $tVars = collect((array) Arr::get($t, 'variables', []))
+                        ->filter(fn($v) => (string) Arr::get($v, 'name') !== '' || (string) Arr::get($v, 'path') !== '' || (string) Arr::get($v, 'value') !== '')
+                        ->values()->all();
+                    if (!in_array($method, ['cloud_api','evolution_api'], true)) {
+                        return null;
+                    }
+                    if ((string) $gatewayId === '') {
+                        return null;
+                    }
+                    return [
+                        'method' => $method,
+                        'gateway_id' => $gatewayId,
+                        'template_id' => $templateId,
+                        'variables' => $tVars ?: null,
+                    ];
+                })
+                ->filter()
+                ->values()
+                ->all();
+            if (!empty($targets)) {
+                $action['targets'] = $targets;
+            }
+            // Legacy fields
             $method = Arr::get($action, 'method');
             if ($method === 'cloud_api') {
                 $action['gateway_ids'] = array_values(array_filter((array) Arr::get($action, 'cloud_gateway_ids', [])));
@@ -220,7 +280,6 @@ class IntegrationController extends Controller
                 $action['gateway_ids'] = array_values(array_filter((array) Arr::get($action, 'evolution_gateway_ids', [])));
                 $action['template_id'] = Arr::get($action, 'evolution_template_id');
             } else {
-                // Method not set: still accept generic gateway_ids / CSV
                 if (!isset($action['gateway_ids']) && isset($action['gateway_ids_str'])) {
                     $action['gateway_ids'] = array_filter(array_map('trim', explode(',', (string) $action['gateway_ids_str'])));
                 }
